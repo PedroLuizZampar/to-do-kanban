@@ -1,0 +1,9 @@
+# Lista das dependências Node (espelho do package.json)
+# Instalação recomendada: usar `npm ci` (com package-lock.json) ou `npm install`.
+
+cors@^2.8.5
+dotenv@^16.4.5
+express@^4.19.2
+morgan@^1.10.0
+mysql2@^3.11.0
+nodemon@^3.1.0   # dev
