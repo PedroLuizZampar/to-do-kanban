@@ -10,6 +10,11 @@ const Board = (() => {
 
 	function render() {
 		board.innerHTML = '';
+		// Se não há board selecionado, mostra mensagem e sai
+		if (!window.$utils.getBoardId()) {
+			board.append(el('div', { class: 'empty-board' }, 'Nenhum quadro selecionado. Crie um quadro para começar.'));
+			return;
+		}
 		state.categories.sort(sortByPosition).forEach(cat => {
 			const $col = tplColumn.content.firstElementChild.cloneNode(true);
 			$col.dataset.categoryId = cat.id;

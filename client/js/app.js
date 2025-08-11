@@ -80,18 +80,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	btnNewBoard.addEventListener('click', () => Modal.open($modals.boardForm ? $modals.boardForm() : (function(){})()));
 
-	document.getElementById('btn-new-task').addEventListener('click', async () => Modal.open(await taskForm()));
-	document.getElementById('btn-new-category').addEventListener('click', () => Modal.open(categoryForm()));
-	document.getElementById('btn-new-tag').addEventListener('click', () => $modals.tagManager());
+	function ensureBoard(action) {
+		if (!window.$utils.getBoardId()) {
+			$modals.toast.show('Crie um quadro primeiro.');
+			return false;
+		}
+		return true;
+	}
+
+	document.getElementById('btn-new-task').addEventListener('click', async () => {
+		if (!ensureBoard()) return;
+		// verifica se há colunas antes de abrir
+		const cats = await api.get('/api/categories');
+		if (!cats.length) { $modals.toast.show('Crie uma coluna primeiro.'); return; }
+		Modal.open(await taskForm());
+	});
+	document.getElementById('btn-new-category').addEventListener('click', () => { if (!ensureBoard()) return; Modal.open(categoryForm()); });
+	document.getElementById('btn-new-tag').addEventListener('click', () => { if (!ensureBoard()) return; $modals.tagManager(); });
 	document.getElementById('btn-help').addEventListener('click', () => $modals.openHelp());
 
 	// Atalhos (Alt + key)
 	document.addEventListener('keydown', async (e) => {
 		if (!e.altKey) return;
 		const k = e.key.toLowerCase();
-		if (k === 'n') { e.preventDefault(); Modal.open(await taskForm()); }
-		if (k === 'c') { e.preventDefault(); Modal.open(categoryForm()); }
-		if (k === 't') { e.preventDefault(); $modals.tagManager(); }
+		if (k === 'n') { e.preventDefault(); if (ensureBoard()) { const cats = await api.get('/api/categories'); if (!cats.length) { $modals.toast.show('Crie uma coluna primeiro.'); return; } Modal.open(await taskForm()); } }
+		if (k === 'c') { e.preventDefault(); if (ensureBoard()) Modal.open(categoryForm()); }
+		if (k === 't') { e.preventDefault(); if (ensureBoard()) $modals.tagManager(); }
 		if (k === 'h') { e.preventDefault(); $modals.openHelp(); }
 		if (k === 'q') { e.preventDefault(); Modal.open($modals.boardForm()); }
 	});

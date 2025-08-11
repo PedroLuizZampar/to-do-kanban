@@ -10,39 +10,97 @@ function setBoardId(id) {
 function getBoardId() { return _BOARD_ID; }
 
 const api = {
+	// Helper para obter headers com token de autenticação
+	getHeaders() {
+		const headers = { 'Content-Type': 'application/json' };
+		const token = window.$auth ? window.$auth.getToken() : localStorage.getItem('token');
+		if (token) {
+			headers['Authorization'] = `Bearer ${token}`;
+		}
+		return headers;
+	},
+	
 	async get(path) {
 		const url = new URL(path, window.location.origin);
 		if (getBoardId() && !url.searchParams.has('boardId') && path.startsWith('/api/')) {
 			url.searchParams.set('boardId', String(getBoardId()));
 		}
-		const r = await fetch(url);
+		const r = await fetch(url, { 
+			headers: this.getHeaders() 
+		});
+		
+		if (r.status === 401) {
+			// Token inválido - redireciona para login
+			if (window.$auth) window.$auth.logout();
+			else window.location.href = '/login.html';
+			throw new Error('Sessão expirada. Por favor, faça login novamente.');
+		}
+		
 		if (!r.ok) throw new Error(await r.text());
 		return r.json();
 	},
+	
 	async post(path, body) {
 		const url = new URL(path, window.location.origin);
 		if (getBoardId() && !url.searchParams.has('boardId') && path.startsWith('/api/')) {
 			url.searchParams.set('boardId', String(getBoardId()));
 		}
-		const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+		const r = await fetch(url, { 
+			method: 'POST', 
+			headers: this.getHeaders(), 
+			body: JSON.stringify(body) 
+		});
+		
+		if (r.status === 401) {
+			// Token inválido - redireciona para login
+			if (window.$auth) window.$auth.logout();
+			else window.location.href = '/login.html';
+			throw new Error('Sessão expirada. Por favor, faça login novamente.');
+		}
+		
 		if (!r.ok) throw new Error(await r.text());
 		return r.json();
 	},
+	
 	async put(path, body) {
 		const url = new URL(path, window.location.origin);
 		if (getBoardId() && !url.searchParams.has('boardId') && path.startsWith('/api/')) {
 			url.searchParams.set('boardId', String(getBoardId()));
 		}
-		const r = await fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+		const r = await fetch(url, { 
+			method: 'PUT', 
+			headers: this.getHeaders(), 
+			body: JSON.stringify(body) 
+		});
+		
+		if (r.status === 401) {
+			// Token inválido - redireciona para login
+			if (window.$auth) window.$auth.logout();
+			else window.location.href = '/login.html';
+			throw new Error('Sessão expirada. Por favor, faça login novamente.');
+		}
+		
 		if (!r.ok) throw new Error(await r.text());
 		return r.json();
 	},
+	
 	async del(path) {
 		const url = new URL(path, window.location.origin);
 		if (getBoardId() && !url.searchParams.has('boardId') && path.startsWith('/api/')) {
 			url.searchParams.set('boardId', String(getBoardId()));
 		}
-		const r = await fetch(url, { method: 'DELETE' });
+		const r = await fetch(url, { 
+			method: 'DELETE',
+			headers: this.getHeaders()
+		});
+		
+		if (r.status === 401) {
+			// Token inválido - redireciona para login
+			if (window.$auth) window.$auth.logout();
+			else window.location.href = '/login.html';
+			throw new Error('Sessão expirada. Por favor, faça login novamente.');
+		}
+		
 		if (!r.ok && r.status !== 204) throw new Error(await r.text());
 		return true;
 	},

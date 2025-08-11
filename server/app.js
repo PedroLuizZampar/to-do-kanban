@@ -11,6 +11,8 @@ const tagRoutes = require('./routes/tagRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const boardRoutes = require('./routes/boardRoutes');
 const subtaskRoutes = require('./routes/subtaskRoutes');
+const authRoutes = require('./routes/authRoutes');
+const { auth } = require('./middleware/auth');
 
 const app = express();
 
@@ -22,13 +24,16 @@ app.use(morgan('dev'));
 // Static frontend
 app.use('/', express.static(path.join(__dirname, '..', 'client')));
 
-// API routes
-app.use('/api/categories', categoryRoutes);
-app.use('/api/tags', tagRoutes);
-app.use('/api/tasks', taskRoutes);
-app.use('/api/tasks/:taskId/subtasks', subtaskRoutes);
-app.use('/api/subtasks', subtaskRoutes);
-app.use('/api/boards', boardRoutes);
+// API routes de autenticação (públicas)
+app.use('/api/auth', authRoutes);
+
+// API routes protegidas (exigem autenticação)
+app.use('/api/categories', auth, categoryRoutes);
+app.use('/api/tags', auth, tagRoutes);
+app.use('/api/tasks', auth, taskRoutes);
+app.use('/api/tasks/:taskId/subtasks', auth, subtaskRoutes);
+app.use('/api/subtasks', auth, subtaskRoutes);
+app.use('/api/boards', auth, boardRoutes);
 
 // Health
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));

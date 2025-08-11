@@ -9,6 +9,7 @@
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
 		<link rel="stylesheet" href="/css/style.css" />
+		<link rel="stylesheet" href="/css/auth.css" />
 	</head>
 	<body>
 		<header class="topbar">
@@ -33,6 +34,21 @@
 					<span class="material-symbols-outlined" aria-hidden="true">help</span>
 					<span>Ajuda</span>
 				</button>
+				
+				<!-- Componente de usuário -->
+				<div class="user-info" id="user-info">
+					<div class="avatar" id="user-avatar"></div>
+					<div class="user-menu hidden" id="user-menu">
+						<div class="user-menu-item" id="user-profile">
+							<span class="material-symbols-outlined">person</span>
+							<span id="username-display">Usuário</span>
+						</div>
+						<div class="user-menu-item danger" id="user-logout">
+							<span class="material-symbols-outlined">logout</span>
+							<span>Sair</span>
+						</div>
+					</div>
+				</div>
 			</div>
 		</header>
 
@@ -106,9 +122,52 @@
 		<div id="modal" class="modal hidden" role="dialog" aria-modal="true"></div>
 		<div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 
+		<script src="/js/auth.js"></script>
 		<script src="/js/utils.js"></script>
 		<script src="/js/modals.js"></script>
 		<script src="/js/kanban.js"></script>
 		<script src="/js/app.js"></script>
+		
+		<script>
+			// Verifica autenticação
+			document.addEventListener('DOMContentLoaded', () => {
+				// Redireciona para login se não estiver autenticado
+				if (!window.$auth.isAuthenticated()) {
+					window.location.href = '/login.html';
+					return;
+				}
+				
+				// Configura componente de usuário
+				const user = window.$auth.getUser();
+				if (user) {
+					// Avatar com primeira letra do username
+					const avatar = document.getElementById('user-avatar');
+					avatar.textContent = user.username.charAt(0).toUpperCase();
+					
+					// Nome do usuário
+					document.getElementById('username-display').textContent = user.username;
+					
+					// Toggle menu de usuário
+					const userInfo = document.getElementById('user-info');
+					const userMenu = document.getElementById('user-menu');
+					
+					userInfo.addEventListener('click', () => {
+						userMenu.classList.toggle('hidden');
+					});
+					
+					// Logout
+					document.getElementById('user-logout').addEventListener('click', () => {
+						window.$auth.logout();
+					});
+					
+					// Fecha menu ao clicar fora
+					document.addEventListener('click', (e) => {
+						if (!userInfo.contains(e.target)) {
+							userMenu.classList.add('hidden');
+						}
+					});
+				}
+			});
+		</script>
 	</body>
 	</html>

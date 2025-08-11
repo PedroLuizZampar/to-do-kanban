@@ -36,6 +36,11 @@ const Modal = (() => {
 		}
 		backdrop.classList.add('hidden');
 		modal.classList.add('hidden');
+		// dispara cleanup para que modais removam listeners globais
+		try {
+			const current = modal.firstElementChild;
+			if (current) current.dispatchEvent(new CustomEvent('modal:cleanup', { bubbles: true }));
+		} catch {}
 		modal.innerHTML = '';
 	}
 
@@ -162,6 +167,8 @@ function tagForm(initial = {}) {
 				try {
 					if (initial.id) await api.put(`/api/tags/${initial.id}`, payload);
 					else await api.post('/api/tags', payload);
+				// Dispara evento global para qualquer modal (taskForm, tagManager) atualizar tags imediatamente
+				document.dispatchEvent(new CustomEvent('tagsChanged'));
 					Modal.close();
 					document.dispatchEvent(new CustomEvent('refreshBoard'));
 				} catch (e) {
@@ -279,7 +286,7 @@ async function taskForm(initial = {}) {
 		el('h3', {}, initial.id ? 'Editar tarefa' : 'Nova tarefa'),
 		el('div', { class: 'row' }, [el('label', {}, 'Título'), title]),
 		el('div', { class: 'row' }, [el('label', {}, 'Descrição'), description]),
-		el('div', { class: 'row' }, [el('label', {}, 'Coluna'), catDropdown]),
+		el('div', { class: 'row' }, [el('label', {}, 'Coluna'), cats.length ? catDropdown : el('div', { class: 'muted' }, 'Nenhuma coluna disponível')]),
 		el('div', { class: 'row' }, [
 			el('label', {}, 'Checklist'),
 			el('div', {}, [
@@ -298,7 +305,7 @@ async function taskForm(initial = {}) {
 					el('button', { class: 'btn-danger', onclick: Modal.close }, 'Cancelar'),
 					el('button', { onclick: async () => {
 						if (!title.value.trim()) { await alertModal({ title: 'Campo obrigatório', message: 'Título é obrigatório.' }); return; }
-					if (!chosenCatId) { await alertModal({ title: 'Seleção necessária', message: 'Selecione uma coluna.' }); return; }
+						if (!chosenCatId || !cats.length) { await alertModal({ title: 'Seleção necessária', message: 'Crie uma coluna antes de adicionar tarefas.' }); return; }
 				const payload = { title: title.value.trim(), description: description.value.trim(), category_id: Number(chosenCatId) };
 				try {
 					let saved;
@@ -328,6 +335,17 @@ async function taskForm(initial = {}) {
 			renderBuckets();
 		} catch {}
 	});
+	// Atualiza buckets se uma tag foi criada/alterada em outro modal sem empilhar (evento global)
+	const onTagsChanged = async () => {
+		try {
+			const fresh = await api.get('/api/tags');
+			tags.length = 0; fresh.forEach(t => tags.push(t));
+			renderBuckets();
+		} catch {}
+	};
+	document.addEventListener('tagsChanged', onTagsChanged);
+	// Remove listener ao fechar (quando modal substituído ou fechado totalmente)
+	content.addEventListener('modal:cleanup', () => { document.removeEventListener('tagsChanged', onTagsChanged); });
 	return content;
 }
 
@@ -354,9 +372,9 @@ async function tagManager() {
                     const ok = await confirmModal({ title: 'Excluir tag', message: `Excluir a tag "${t.name}"?`, confirmText: 'Excluir' });
                     if (!ok) return;
                     await api.del(`/api/tags/${t.id}`);
-                    await refresh();
-                    document.dispatchEvent(new CustomEvent('refreshBoard'));
-                    Toast.show('Tag excluída');
+                    Modal.close();
+                    tagManager(); // Reabre o gerenciador após excluir
+					Toast.show('Tag excluída');
                 }}, [
                     el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'delete'),
                     el('span', { class: 'sr-only' }, 'Excluir')
@@ -381,6 +399,10 @@ async function tagManager() {
 		// também dispara refresh geral do board
 		document.dispatchEvent(new CustomEvent('refreshBoard'));
 	});
+	// Atualiza se houver changes sem empilhar (evento global)
+	const onTagsChanged = async () => { await refresh(); };
+	document.addEventListener('tagsChanged', onTagsChanged);
+	root.addEventListener('modal:cleanup', () => { document.removeEventListener('tagsChanged', onTagsChanged); });
 	Modal.open(root);
 }
 

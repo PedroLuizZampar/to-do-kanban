@@ -4,6 +4,7 @@ module.exports = {
 	async list(req, res, next) {
 		try {
 				const boardId = req.query.boardId ? Number(req.query.boardId) : undefined;
+				if (!boardId) return res.json([]);
 				const data = await Task.list(boardId);
 			res.json(data);
 		} catch (e) { next(e); }

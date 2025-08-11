@@ -4,6 +4,7 @@ module.exports = {
 	async list(req, res, next) {
 		try {
 			const boardId = req.query.boardId ? Number(req.query.boardId) : undefined;
+			if (!boardId) return res.json([]);
 			const data = await Category.list(boardId);
 			res.json(data);
 		} catch (e) { next(e); }
@@ -12,6 +13,7 @@ module.exports = {
 		try {
 				let { name, description, color, board_id } = req.body;
 				if (!board_id && req.query.boardId) board_id = Number(req.query.boardId);
+				if (!board_id) return res.status(400).json({ error: 'board_id é obrigatório' });
 			if (!name) return res.status(400).json({ error: 'name é obrigatório' });
 				// unicidade por board
 				const all = await Category.list(board_id);

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-br">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>Login - Kanban de Tarefas</title>
+		<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+		<link rel="stylesheet" href="/css/style.css" />
+        <link rel="stylesheet" href="/css/auth.css" />
+	</head>
+	<body>
+		<main class="auth-container">
+			<div class="auth-card">
+				<div class="auth-logo">
+					<span class="material-symbols-outlined" aria-hidden="true">view_kanban</span>
+					<h1>Kanban</h1>
+				</div>
+				<h2>Login</h2>
+				<div id="login-error" class="auth-error hidden"></div>
+				<form id="login-form" class="auth-form">
+					<div class="auth-field">
+						<label for="username">Usuário ou Email</label>
+						<input type="text" id="username" name="username" required autocomplete="username" />
+					</div>
+					<div class="auth-field">
+						<label for="password">Senha</label>
+						<input type="password" id="password" name="password" required autocomplete="current-password" />
+					</div>
+					<button type="submit" class="auth-button">Entrar</button>
+				</form>
+				<p class="auth-footer">
+					Não tem uma conta? <a href="register.html">Cadastre-se</a>
+				</p>
+			</div>
+		</main>
+
+        <div id="toast" class="toast hidden"></div>
+		<script src="/js/auth.js"></script>
+		<script>
+			document.addEventListener('DOMContentLoaded', () => {
+                // Se usuário já estiver logado, redireciona para a página inicial
+                if (window.$auth.isAuthenticated()) {
+                    window.location.href = '/';
+                    return;
+                }
+                
+                // Função para mostrar erro
+                function showError(message) {
+                    const errorEl = document.getElementById('login-error');
+                    errorEl.textContent = message;
+                    errorEl.classList.remove('hidden');
+                }
+                
+                // Form de login
+                const loginForm = document.getElementById('login-form');
+                loginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    const username = document.getElementById('username').value.trim();
+                    const password = document.getElementById('password').value;
+                    
+                    // Valida campos
+                    if (!username) return showError('Usuário ou email é obrigatório');
+                    if (!password) return showError('Senha é obrigatória');
+                    
+                    try {
+                        await window.$auth.login(username, password);
+                        window.location.href = '/';
+                    } catch (e) {
+                        showError(e.message || 'Erro ao fazer login');
+                    }
+                });
+            });
+		</script>
+	</body>
+</html>
