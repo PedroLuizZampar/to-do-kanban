@@ -10,5 +10,6 @@ router.delete('/:id', ctrl.remove);
 router.post('/:id/move', ctrl.move);
 router.post('/reorder/:categoryId', ctrl.reorder);
 router.post('/:id/tags', ctrl.setTags);
+router.post('/:id/assignees', ctrl.setAssignees);
 
 module.exports = router;

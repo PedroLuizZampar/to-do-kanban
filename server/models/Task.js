@@ -20,6 +20,12 @@ async function list(boardId) {
 			'SELECT * FROM subtasks WHERE task_id = ? ORDER BY position ASC, id ASC',
 			[t.id]
 		);
+		// assignees
+		t.assignees = await db.query(
+			`SELECT u.id, u.username, u.email, u.avatar_url
+			 FROM task_assignees ta JOIN users u ON u.id = ta.user_id WHERE ta.task_id = ? ORDER BY u.username ASC`,
+			[t.id]
+		);
 	}
 	return tasks;
 }
@@ -45,6 +51,12 @@ async function get(id) {
 	);
 	// subtarefas
 	task.subtasks = await db.query('SELECT * FROM subtasks WHERE task_id = ? ORDER BY position ASC, id ASC', [id]);
+	// assignees
+	task.assignees = await db.query(
+		`SELECT u.id, u.username, u.email, u.avatar_url
+		 FROM task_assignees ta JOIN users u ON u.id = ta.user_id WHERE ta.task_id = ? ORDER BY u.username ASC`,
+		[id]
+	);
 	return task;
 }
 
@@ -116,4 +128,20 @@ async function setTags(taskId, tagIds) {
 	return get(taskId);
 }
 
-module.exports = { list, listByCategory, get, create, update, remove, move, reorder, setTags };
+async function setAssignees(taskId, userIds) {
+	await db.query('DELETE FROM task_assignees WHERE task_id = ?', [taskId]);
+	for (const uid of userIds || []) {
+		await db.query('INSERT IGNORE INTO task_assignees (task_id, user_id) VALUES (?,?)', [taskId, uid]);
+	}
+	// Criar notificações para os usuários atribuídos
+	const task = await get(taskId);
+	// Descobrir board_id a partir da categoria
+	const boardRow = await db.query('SELECT c.board_id FROM tasks t JOIN categories c ON c.id = t.category_id WHERE t.id = ?', [taskId]);
+	const boardId = boardRow[0]?.board_id || null;
+	for (const uid of userIds || []) {
+		await db.query('INSERT INTO user_notifications (user_id, type, message, board_id, task_id) VALUES (?,?,?,?,?)', [uid, 'assignment', `Você foi atribuído à tarefa "${task.title}".`, boardId, taskId]);
+	}
+	return get(taskId);
+}
+
+module.exports = { list, listByCategory, get, create, update, remove, move, reorder, setTags, setAssignees };

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Perfil</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/style.css" />
+  <link rel="stylesheet" href="/css/auth.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1 class="brand">
+        <span class="material-symbols-outlined" aria-hidden="true">person</span>
+        <span>Perfil</span>
+      </h1>
+      <div class="actions">
+        <button id="btn-back" class="btn-ghost"><span class="material-symbols-outlined">arrow_back</span> <span>Voltar</span></button>
+        <button id="btn-logout" class="btn-ghost"><span class="material-symbols-outlined">logout</span> <span>Sair</span></button>
+      </div>
+    </header>
+
+    <main class="auth-container" style="align-items: flex-start;">
+      <div class="auth-card" style="width: 100%; max-width: 640px;">
+        <h2>Configurações de Perfil</h2>
+        <div id="profile-error" class="auth-error hidden"></div>
+
+        <form id="profile-form" class="auth-form">
+          <section style="display: flex; gap: 16px; align-items: center; margin-bottom: 16px;">
+            <img id="avatar-preview" src="" alt="Avatar" style="width: 80px; height: 80px; border-radius: 999px; object-fit: cover; object-position: center; border:1px solid var(--border); background:#f3f4f6;" />
+            <div class="file-upload">
+              <input class="file-input" type="file" id="avatar" name="avatar" accept="image/*" />
+              <label class="file-label" for="avatar"><span class="material-symbols-outlined">photo_camera</span> Escolher foto</label>
+              <span id="file-name" class="file-name">Nenhum arquivo selecionado</span>
+            </div>
+          </section>
+
+          <div class="auth-field">
+            <label for="p-username">Nome de usuário</label>
+            <input type="text" id="p-username" name="username" required />
+          </div>
+          <div class="auth-field">
+            <label for="p-email">Email</label>
+            <input type="email" id="p-email" name="email" required />
+          </div>
+          <div class="auth-field">
+            <label for="p-password">Nova senha (opcional)</label>
+            <input type="password" id="p-password" name="password" placeholder="Deixe em branco para manter" />
+          </div>
+          <button style="width: 120px; margin: auto; text-align: center;" type="submit">Salvar alterações</button>
+        </form>
+
+        <hr style="margin: 16px 0; border: none; border-top: 1px solid var(--border);" />
+        <button id="btn-delete" class="btn-danger">Excluir minha conta</button>
+      </div>
+    </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <div id="modal-backdrop" class="modal-backdrop hidden"></div>
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true"></div>
+  <script src="/js/auth.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/modals.js"></script>
+  <script src="/js/user-menu.js"></script>
+    <script>
+      function showError(msg) {
+        const el = document.getElementById('profile-error');
+        el.textContent = msg;
+        el.classList.remove('hidden');
+      }
+
+      function fill(user) {
+        document.getElementById('p-username').value = user.username || '';
+        document.getElementById('p-email').value = user.email || '';
+        const img = document.getElementById('avatar-preview');
+        img.src = user.avatar_url || '';
+      }
+
+      async function load() {
+        if (!window.$auth.checkAuth()) return;
+        const u = window.$auth.getUser();
+        if (!u) { window.location.href = '/login.html'; return; }
+        fill(u);
+      }
+
+      async function updateLocalUser() {
+        // Atualiza user no localStorage com /api/auth/profile
+        const r = await fetch('/api/auth/profile', { headers: { 'Authorization': 'Bearer ' + window.$auth.getToken() } });
+        const data = await r.json();
+        if (r.ok) {
+          localStorage.setItem('user', JSON.stringify(data.user));
+          fill(data.user);
+        }
+      }
+
+      // Função para criar/atualizar elemento de avatar com imagem interna
+      window.updateAvatarDisplay = function(element, avatarUrl) {
+        if (avatarUrl) {
+          // Se já existe uma imagem dentro do avatar, atualizamos apenas o src
+          let imgEl = element.querySelector('img');
+          if (!imgEl) {
+            // Se não existe imagem, criamos uma nova
+            imgEl = document.createElement('img');
+            element.innerHTML = '';
+            element.appendChild(imgEl);
+          }
+          imgEl.src = avatarUrl;
+          imgEl.alt = 'Avatar do usuário';
+        } else {
+          // Se não tem avatar, colocamos as iniciais ou ícone padrão
+          const user = window.$auth.getUser() || {};
+          const initials = user.username ? user.username.charAt(0).toUpperCase() : '?';
+          element.innerHTML = initials;
+        }
+      }
+
+  document.addEventListener('DOMContentLoaded', () => {
+        load();
+
+        document.getElementById('btn-back').addEventListener('click', () => window.location.href = '/');
+        document.getElementById('btn-logout').addEventListener('click', () => window.$auth.logout());
+
+        const fileInput = document.getElementById('avatar');
+        const fileNameEl = document.getElementById('file-name');
+        fileInput.addEventListener('change', () => {
+          const f = fileInput.files[0];
+          fileNameEl.textContent = f ? f.name : 'Nenhum arquivo selecionado';
+          if (f) {
+            const url = URL.createObjectURL(f);
+            const img = document.getElementById('avatar-preview');
+            img.src = url;
+          }
+        });
+
+        document.getElementById('profile-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          try {
+            // Primeiro enviamos os dados do perfil
+            const payload = {
+              username: document.getElementById('p-username').value.trim(),
+              email: document.getElementById('p-email').value.trim(),
+              password: document.getElementById('p-password').value
+            };
+            
+            const r = await fetch('/api/profile', { 
+              method: 'PUT', 
+              headers: { 
+                'Content-Type': 'application/json', 
+                'Authorization': 'Bearer ' + window.$auth.getToken() 
+              }, 
+              body: JSON.stringify(payload) 
+            });
+            
+            const data = await r.json();
+            if (!r.ok) throw new Error(data.error || 'Falha ao salvar');
+            
+            // Se há um arquivo de avatar para enviar, fazemos isso também
+            const file = fileInput.files[0];
+            if (file) {
+              const fd = new FormData();
+              fd.append('avatar', file);
+              const avatarResponse = await fetch('/api/profile/avatar', { 
+                method: 'POST', 
+                headers: { 
+                  'Authorization': 'Bearer ' + window.$auth.getToken() 
+                }, 
+                body: fd 
+              });
+              
+              if (!avatarResponse.ok) {
+                throw new Error((await avatarResponse.json()).error || 'Falha no upload da foto');
+              }
+            }
+            
+            // Atualiza os dados do usuário após todas as alterações
+            await updateLocalUser();
+            document.getElementById('p-password').value = '';
+            fileInput.value = '';
+            fileNameEl.textContent = 'Nenhum arquivo selecionado';
+            
+            if (window.$modals && window.$modals.alert) {
+              await window.$modals.alert({ 
+                title: 'Perfil atualizado', 
+                message: 'Suas informações foram salvas com sucesso.' 
+              });
+            }
+          } catch (err) { showError(err.message || 'Erro ao salvar'); }
+        });
+
+        document.getElementById('btn-delete').addEventListener('click', async () => {
+          if (!confirm('Tem certeza que deseja excluir sua conta? Esta ação é irreversível.')) return;
+          try {
+            const r = await fetch('/api/profile', { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.$auth.getToken() } });
+            if (!r.ok) throw new Error((await r.json()).error || 'Falha ao excluir');
+            window.$auth.logout();
+          } catch (err) { showError(err.message || 'Erro ao excluir'); }
+        });
+      });
+    </script>
+  </body>
+</html>

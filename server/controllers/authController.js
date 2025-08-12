@@ -17,12 +17,9 @@ module.exports = {
       if (!email) return res.status(400).json({ error: 'Email é obrigatório' });
       if (!password || password.length < 6) return res.status(400).json({ error: 'Senha deve ter pelo menos 6 caracteres' });
       
-      // Verifica se email ou username já existem
-      const existingUser = await User.findByCredentials(email) || await User.findByCredentials(username);
-      if (existingUser) {
-        if (existingUser.email === email) return res.status(409).json({ error: 'Este email já está em uso' });
-        return res.status(409).json({ error: 'Este username já está em uso' });
-      }
+  // Permite e-mails duplicados. Ainda bloqueia username duplicado.
+  const existingUser = await User.findByUsername(username);
+  if (existingUser) return res.status(409).json({ error: 'Este username já está em uso' });
       
       // Cria usuário
       const user = await User.create({ username, email, password });
@@ -34,7 +31,9 @@ module.exports = {
         user: {
           id: user.id,
           username: user.username,
-          email: user.email
+          email: user.email,
+          is_admin: user.is_admin === 1 || user.is_admin === true,
+          avatar_url: user.avatar_url || null
         },
         token
       });
@@ -66,7 +65,9 @@ module.exports = {
         user: {
           id: user.id,
           username: user.username,
-          email: user.email
+          email: user.email,
+          is_admin: user.is_admin === 1 || user.is_admin === true,
+          avatar_url: user.avatar_url || null
         },
         token
       });
@@ -81,7 +82,9 @@ module.exports = {
       user: {
         id: req.user.id,
         username: req.user.username,
-        email: req.user.email
+        email: req.user.email,
+        is_admin: req.user.is_admin === 1 || req.user.is_admin === true,
+        avatar_url: req.user.avatar_url || null
       }
     });
   }

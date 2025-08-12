@@ -66,4 +66,13 @@ module.exports = {
 			res.json(data);
 		} catch (e) { next(e); }
 	},
+	async setAssignees(req, res, next) {
+		try {
+			const id = Number(req.params.id);
+			const { userIds } = req.body; // [userId]
+			if (!Array.isArray(userIds)) return res.status(400).json({ error: 'userIds deve ser um array de IDs' });
+			const data = await Task.setAssignees(id, userIds.map(Number));
+			res.json(data);
+		} catch (e) { next(e); }
+	},
 };

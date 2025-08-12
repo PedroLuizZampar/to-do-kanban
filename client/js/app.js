@@ -99,15 +99,99 @@ document.addEventListener('DOMContentLoaded', () => {
 	document.getElementById('btn-new-tag').addEventListener('click', () => { if (!ensureBoard()) return; $modals.tagManager(); });
 	document.getElementById('btn-help').addEventListener('click', () => $modals.openHelp());
 
-	// Atalhos (Alt + key)
+	// Compartilhar quadro
+	const btnShare = document.getElementById('btn-share');
+	if (btnShare) btnShare.addEventListener('click', async () => {
+		if (!ensureBoard()) return;
+		const boardId = window.$utils.getBoardId();
+		const root = el('div');
+		root.append(el('h3', {}, 'Compartilhar quadro'));
+		const list = el('div', { class: 'tag-list' });
+		const selected = new Set();
+		async function refreshUsers() {
+			list.innerHTML = '';
+			const users = await api.get(`/api/boards/${boardId}/invite/users`);
+			if (!users.length) {
+				list.append(el('p', { class: 'muted' }, 'Nenhum usuário disponível para convidar.'));
+				return;
+			}
+			users.forEach(u => {
+				const row = el('div', { class: 'tag-row' });
+				const left = el('div', { class: 'tag-left' }, [
+					u.avatar_url ? (function(){ const i = el('img', { src: u.avatar_url, alt: u.username, style: 'width:24px;height:24px;border-radius:999px;object-fit:cover;border:1px solid var(--border);' }); return i; })() : el('span', { class: 'tag', style: 'background:#e5e7eb;color:#111' }, u.username.charAt(0).toUpperCase()),
+					el('strong', { style: 'margin-left:8px' }, u.username),
+					el('small', { class: 'muted', style: 'margin-left:6px' }, `(${u.email})`),
+				]);
+				const checkbox = el('input', { type: 'checkbox' });
+				checkbox.addEventListener('change', () => { checkbox.checked ? selected.add(u.id) : selected.delete(u.id); });
+				const actions = el('div', { class: 'tag-actions' }, [checkbox]);
+				row.append(left, actions);
+				list.append(row);
+			});
+		}
+		await refreshUsers();
+		root.append(list);
+		root.append(el('footer', {}, [
+			el('button', { class: 'btn-ghost', onclick: Modal.close }, 'Cancelar'),
+			el('button', { onclick: async () => {
+				if (!selected.size) { await $modals.alert({ title: 'Selecione', message: 'Escolha pelo menos um usuário.' }); return; }
+				await fetch(`/api/boards/${boardId}/invite`, { method: 'POST', headers: api.getHeaders(), body: JSON.stringify({ userIds: Array.from(selected) }) });
+				Modal.close();
+				$modals.toast.show('Convites enviados');
+			}}, 'Convidar')
+		]));
+		Modal.open(root);
+	});
+
+	// Inbox de convites
+	const btnInbox = document.getElementById('btn-inbox');
+	const badge = document.getElementById('inbox-badge');
+	async function loadInboxCount() {
+		try {
+			const items = await api.get('/api/boards/inbox');
+			if (badge) {
+				badge.textContent = String(items.length);
+				badge.style.display = items.length ? 'inline-block' : 'none';
+			}
+			return items;
+		} catch { if (badge) badge.style.display = 'none'; return []; }
+	}
+	if (btnInbox) btnInbox.addEventListener('click', async () => {
+		const items = await loadInboxCount();
+		const root = el('div');
+		root.append(el('h3', {}, 'Convites pendentes'));
+		if (!items.length) {
+			root.append(el('p', { class: 'muted' }, 'Sem convites no momento.'));
+			return Modal.open(root);
+		}
+		items.forEach(inv => {
+			const row = el('div', { class: 'tag-row' });
+			const left = el('div', { class: 'tag-left' }, [
+				el('span', { class: 'tag', style: 'background:#e0f2fe;color:#0c4a6e' }, inv.board_name),
+				el('small', { class: 'muted', style: 'margin-left:6px' }, `Convidado por ${inv.invited_by_name}`),
+			]);
+			const actions = el('div', { class: 'tag-actions' }, [
+				el('button', { class: 'btn-success', onclick: async () => { await api.post(`/api/boards/invite/${inv.id}/respond`, { accept: true }); Modal.close(); await loadInboxCount(); $modals.toast.show('Convite aceito'); document.dispatchEvent(new CustomEvent('refreshBoard')); } }, 'Aceitar'),
+				el('button', { class: 'btn-danger', onclick: async () => { await api.post(`/api/boards/invite/${inv.id}/respond`, { accept: false }); Modal.close(); await loadInboxCount(); $modals.toast.show('Convite recusado'); } }, 'Recusar'),
+			]);
+			row.append(left, actions);
+			root.append(row);
+		});
+		root.append(el('footer', {}, [el('button', { class: 'btn-ghost', onclick: Modal.close }, 'Fechar')]));
+		Modal.open(root);
+	});
+	loadInboxCount();
+
+	// Atalhos (sem Alt+P)
 	document.addEventListener('keydown', async (e) => {
 		if (!e.altKey) return;
-		const k = e.key.toLowerCase();
-		if (k === 'n') { e.preventDefault(); if (ensureBoard()) { const cats = await api.get('/api/categories'); if (!cats.length) { $modals.toast.show('Crie uma coluna primeiro.'); return; } Modal.open(await taskForm()); } }
-		if (k === 'c') { e.preventDefault(); if (ensureBoard()) Modal.open(categoryForm()); }
-		if (k === 't') { e.preventDefault(); if (ensureBoard()) $modals.tagManager(); }
+		const k = (e.key || '').toLowerCase();
+		if (k === 'n') { e.preventDefault(); if (!ensureBoard()) return; const cats = await api.get('/api/categories'); if (!cats.length) { $modals.toast.show('Crie uma coluna primeiro.'); return; } Modal.open(await taskForm()); }
+		if (k === 'c') { e.preventDefault(); if (!ensureBoard()) return; Modal.open(categoryForm()); }
+		if (k === 't') { e.preventDefault(); if (!ensureBoard()) return; $modals.tagManager(); }
 		if (k === 'h') { e.preventDefault(); $modals.openHelp(); }
 		if (k === 'q') { e.preventDefault(); Modal.open($modals.boardForm()); }
+	if (k === 's') { e.preventDefault(); if (!ensureBoard()) return; btnShare?.click(); }
 	});
 	document.addEventListener('refreshBoard', () => { renderBoards(); $board.load(); });
 	(async () => { await renderBoards(); $board.load(); })();

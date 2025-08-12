@@ -59,7 +59,10 @@ const api = {
 		}
 		
 		if (!r.ok) throw new Error(await r.text());
-		return r.json();
+		if (r.status === 204) return true;
+		const txt = await r.text();
+		if (!txt) return true;
+		try { return JSON.parse(txt); } catch { return txt; }
 	},
 	
 	async put(path, body) {
@@ -81,7 +84,10 @@ const api = {
 		}
 		
 		if (!r.ok) throw new Error(await r.text());
-		return r.json();
+		if (r.status === 204) return true;
+		const txt = await r.text();
+		if (!txt) return true;
+		try { return JSON.parse(txt); } catch { return txt; }
 	},
 	
 	async del(path) {

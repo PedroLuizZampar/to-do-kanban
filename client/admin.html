@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin - Kanban</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet" />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1 class="brand">
+        <span class="material-symbols-outlined" aria-hidden="true">admin_panel_settings</span>
+        <span>Admin</span>
+      </h1>
+      <div class="actions">
+        <button id="btn-logout" class="btn-ghost">
+          <span class="material-symbols-outlined">logout</span>
+          <span>Sair</span>
+        </button>
+      </div>
+    </header>
+
+    <main style="padding: 16px;">
+      <h2>Usuários</h2>
+      <div id="users-error" class="toast toast-error hidden"></div>
+      <table id="users-table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">ID</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Usuário</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Email</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Admin</th>
+            <th style="text-align:left; padding:8px; border-bottom:1px solid var(--border);">Ações</th>
+          </tr>
+        </thead>
+        <tbody id="users-body"></tbody>
+      </table>
+    </main>
+
+    <script src="/js/auth.js"></script>
+    <script>
+      const api = {
+        async listUsers() {
+          const r = await fetch('/api/admin/users', { headers: { 'Authorization': 'Bearer ' + window.$auth.getToken() } });
+          if (!r.ok) throw new Error((await r.json()).error || 'Erro ao listar usuários');
+          return r.json();
+        },
+        async resetPassword(id) {
+          const r = await fetch('/api/admin/users/' + id + '/reset-password', { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.$auth.getToken() } });
+          if (!r.ok) throw new Error((await r.json()).error || 'Erro ao resetar senha');
+        },
+        async removeUser(id) {
+          const r = await fetch('/api/admin/users/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.$auth.getToken() } });
+          if (!r.ok) throw new Error((await r.json()).error || 'Erro ao remover usuário');
+        }
+      };
+
+      function ensureAdmin() {
+        if (!window.$auth.checkAuth()) return false;
+        const user = window.$auth.getUser();
+        if (!user || !user.is_admin) { window.location.href = '/'; return false; }
+        return true;
+      }
+
+      function renderUsers(users) {
+        const body = document.getElementById('users-body');
+        body.innerHTML = '';
+        users.forEach(u => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td style="padding:8px; border-bottom:1px solid var(--border);">${u.id}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--border);">${u.username}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--border);">${u.email}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--border);">${u.is_admin ? 'Sim' : 'Não'}</td>
+            <td style="padding:8px; border-bottom:1px solid var(--border); display:flex; gap:8px;">
+              <button class="btn-ghost" data-act="reset" data-id="${u.id}"><span class="material-symbols-outlined">key</span> Resetar senha</button>
+              <button class="btn-danger" data-act="remove" data-id="${u.id}"><span class="material-symbols-outlined">delete</span> Remover</button>
+            </td>`;
+          body.appendChild(tr);
+        });
+      }
+
+      async function load() {
+        try {
+          const users = await api.listUsers();
+          renderUsers(users);
+        } catch (e) {
+          const el = document.getElementById('users-error');
+          el.textContent = e.message || 'Erro';
+          el.classList.remove('hidden');
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        if (!ensureAdmin()) return;
+        load();
+
+        document.getElementById('users-body').addEventListener('click', async (e) => {
+          const btn = e.target.closest('button');
+          if (!btn) return;
+          const id = Number(btn.dataset.id);
+          const act = btn.dataset.act;
+          try {
+            if (act === 'reset') {
+              await api.resetPassword(id);
+              alert('Senha redefinida para: mudar123');
+            } else if (act === 'remove') {
+              if (confirm('Tem certeza que deseja remover este usuário?')) {
+                await api.removeUser(id);
+                await load();
+              }
+            }
+          } catch (err) {
+            alert(err.message || 'Erro na ação');
+          }
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', () => window.$auth.logout());
+        });
+    </script>
+  </body>
+</html>

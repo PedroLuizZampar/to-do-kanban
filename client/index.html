@@ -30,9 +30,18 @@
 					<span class="material-symbols-outlined" aria-hidden="true">sell</span>
 					<span>Tags</span>
 				</button>
-				<button id="btn-help" title="Ajuda e atalhos (Alt+H)">
+				<button id="btn-help" title="Ajuda">
 					<span class="material-symbols-outlined" aria-hidden="true">help</span>
 					<span>Ajuda</span>
+				</button>
+				<button id="btn-share" title="Compartilhar quadro">
+					<span class="material-symbols-outlined" aria-hidden="true">person_add</span>
+					<span>Compartilhar</span>
+				</button>
+				<button id="btn-inbox" class="btn-ghost" title="Convites">
+					<span class="material-symbols-outlined" aria-hidden="true">mail</span>
+					<span class="sr-only">Convites</span>
+					<span id="inbox-badge" style="margin-left:4px; background:#ef4444; color:#fff; border-radius:999px; padding:0 6px; font-size:12px; display:none;">0</span>
 				</button>
 				
 				<!-- Componente de usuário -->
@@ -127,6 +136,7 @@
 		<script src="/js/modals.js"></script>
 		<script src="/js/kanban.js"></script>
 		<script src="/js/app.js"></script>
+		<script src="/js/user-menu.js"></script>
 		
 		<script>
 			// Verifica autenticação
@@ -136,13 +146,34 @@
 					window.location.href = '/login.html';
 					return;
 				}
+
+				// Se for admin, redireciona para painel de administração
+				const currentUser = window.$auth.getUser();
+				if (currentUser && currentUser.is_admin) {
+					window.location.href = '/admin.html';
+					return;
+				}
 				
 				// Configura componente de usuário
-				const user = window.$auth.getUser();
+				const user = currentUser;
 				if (user) {
-					// Avatar com primeira letra do username
+					// Avatar: foto (se disponível) ou inicial
 					const avatar = document.getElementById('user-avatar');
-					avatar.textContent = user.username.charAt(0).toUpperCase();
+					if (window.updateAvatarDisplay) {
+						// Usar nossa nova função para manter consistência
+						window.updateAvatarDisplay(avatar, user.avatar_url);
+					} else {
+						// Fallback para o código antigo
+						if (user.avatar_url) {
+							const imgEl = document.createElement('img');
+							imgEl.src = user.avatar_url;
+							imgEl.alt = 'Avatar do usuário';
+							avatar.innerHTML = '';
+							avatar.appendChild(imgEl);
+						} else {
+							avatar.innerHTML = user.username.charAt(0).toUpperCase();
+						}
+					}
 					
 					// Nome do usuário
 					document.getElementById('username-display').textContent = user.username;
@@ -155,6 +186,17 @@
 						userMenu.classList.toggle('hidden');
 					});
 					
+					// Acessar Perfil
+					document.getElementById('user-profile').addEventListener('click', () => {
+						window.location.href = '/profile.html';
+					});
+
+					// Clique no avatar abre perfil diretamente
+					avatar.addEventListener('click', (e) => {
+						e.stopPropagation();
+						window.location.href = '/profile.html';
+					});
+
 					// Logout
 					document.getElementById('user-logout').addEventListener('click', () => {
 						window.$auth.logout();

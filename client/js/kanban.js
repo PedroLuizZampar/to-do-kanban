@@ -90,6 +90,32 @@ const Board = (() => {
 		}
 		const tagsWrap = $card.querySelector('.card-tags');
 		(task.tags || []).forEach(t => tagsWrap.append(pill(t.name, t.color)));
+		// Avatares dos responsáveis
+		const avatarsWrap = document.createElement('div');
+		avatarsWrap.className = 'card-assignees';
+		(task.assignees || []).slice(0,4).forEach((u, idx) => {
+			const a = document.createElement('div');
+			a.className = 'avatar-mini';
+			// tooltip simples após 1s de hover
+			let hoverTimer; let tip;
+			a.addEventListener('mouseenter', () => { hoverTimer = setTimeout(() => {
+				if (tip) return; tip = document.createElement('span'); tip.className = 'avatar-tip'; tip.textContent = u.username; a.appendChild(tip);
+			}, 1000); });
+			a.addEventListener('mouseleave', () => { clearTimeout(hoverTimer); if (tip) { tip.remove(); tip = null; } });
+			if (u.avatar_url) {
+				const img = document.createElement('img'); img.src = u.avatar_url; img.alt = u.username; a.append(img);
+			} else {
+				a.textContent = (u.username || '?').charAt(0).toUpperCase();
+			}
+			avatarsWrap.append(a);
+		});
+		if ((task.assignees || []).length > 4) {
+			const more = document.createElement('div');
+			more.className = 'avatar-mini more';
+			more.textContent = `+${(task.assignees.length - 4)}`;
+			avatarsWrap.append(more);
+		}
+		$card.insertBefore(avatarsWrap, $card.querySelector('.card-actions'));
 		$card.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', String(task.id)));
 		$card.querySelector('.btn-edit-card').addEventListener('click', async () => {
 			const fresh = state.tasks.find(x => x.id === task.id);

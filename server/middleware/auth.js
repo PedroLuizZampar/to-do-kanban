@@ -38,3 +38,16 @@ const auth = async (req, res, next) => {
 };
 
 module.exports = { auth };
+// Middleware para admins
+const requireAdmin = (req, res, next) => {
+  try {
+    if (!req.user || !req.user.is_admin) {
+      return res.status(403).json({ error: 'Acesso restrito a administradores' });
+    }
+    next();
+  } catch (e) {
+    res.status(500).json({ error: 'Erro interno de servidor' });
+  }
+};
+
+module.exports.requireAdmin = requireAdmin;

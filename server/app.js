@@ -12,6 +12,8 @@ const taskRoutes = require('./routes/taskRoutes');
 const boardRoutes = require('./routes/boardRoutes');
 const subtaskRoutes = require('./routes/subtaskRoutes');
 const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const profileRoutes = require('./routes/profileRoutes');
 const { auth } = require('./middleware/auth');
 
 const app = express();
@@ -23,9 +25,13 @@ app.use(morgan('dev'));
 
 // Static frontend
 app.use('/', express.static(path.join(__dirname, '..', 'client')));
+// Static uploads
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // API routes de autenticação (públicas)
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/profile', profileRoutes);
 
 // API routes protegidas (exigem autenticação)
 app.use('/api/categories', auth, categoryRoutes);

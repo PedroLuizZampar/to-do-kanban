@@ -185,6 +185,9 @@ function tagForm(initial = {}) {
 async function taskForm(initial = {}) {
 	const cats = await api.get('/api/categories');
 	const tags = await api.get('/api/tags');
+	// carrega membros do quadro atual para atribuição
+	let members = [];
+	try { members = await api.get(`/api/boards/${window.$utils.getBoardId()}/invite/users?mode=members`); } catch {}
 	const title = el('input', { value: initial.title || '', placeholder: 'Título' });
 	const description = el('textarea', { placeholder: 'Descrição' }, initial.description || '');
 
@@ -282,11 +285,43 @@ async function taskForm(initial = {}) {
 	}
 	renderBuckets();
 
+	// Atribuídos (UI semelhante às tags, com avatar nas pílulas)
+	const selectedAssignees = new Set((initial.assignees || []).map(a => a.id));
+	const assigneesAvailable = el('div', { class: 'tag-bucket' });
+	const assigneesSelected = el('div', { class: 'tag-bucket' });
+	function userPill(u) {
+		const p = el('span', { class: 'tag user-pill' });
+		const avatar = u.avatar_url ? el('img', { src: u.avatar_url, alt: u.username }) : el('span', { class: 'avatar-fallback' }, u.username.charAt(0).toUpperCase());
+		const name = el('span', { class: 'user-name' }, u.username);
+		p.append(avatar, name);
+		p.addEventListener('click', () => {
+			if (selectedAssignees.has(u.id)) selectedAssignees.delete(u.id); else selectedAssignees.add(u.id);
+			renderAssigneeBuckets();
+		});
+		return p;
+	}
+	function renderAssigneeBuckets() {
+		assigneesAvailable.innerHTML = '';
+		assigneesSelected.innerHTML = '';
+		members.forEach(u => {
+			const isSel = selectedAssignees.has(u.id);
+			(isSel ? assigneesSelected : assigneesAvailable).append(userPill(u));
+		});
+	}
+	renderAssigneeBuckets();
+
 	const content = el('div', {}, [
 		el('h3', {}, initial.id ? 'Editar tarefa' : 'Nova tarefa'),
 		el('div', { class: 'row' }, [el('label', {}, 'Título'), title]),
 		el('div', { class: 'row' }, [el('label', {}, 'Descrição'), description]),
 		el('div', { class: 'row' }, [el('label', {}, 'Coluna'), cats.length ? catDropdown : el('div', { class: 'muted' }, 'Nenhuma coluna disponível')]),
+		el('div', { class: 'row' }, [
+			el('label', {}, 'Responsáveis'),
+			el('div', { class: 'tag-dual' }, [
+				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Disponíveis'), assigneesAvailable]),
+				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Atribuídos'), assigneesSelected]),
+			])
+		]),
 		el('div', { class: 'row' }, [
 			el('label', {}, 'Checklist'),
 			el('div', {}, [
@@ -313,6 +348,9 @@ async function taskForm(initial = {}) {
 					else saved = await api.post('/api/tasks', payload);
 					const tagsArr = Array.from(selectedTags);
 					await api.post(`/api/tasks/${saved.id}/tags`, { tags: tagsArr });
+				// salvar responsáveis
+				const assigneesArr = Array.from(selectedAssignees);
+				await api.post(`/api/tasks/${saved.id}/assignees`, { userIds: assigneesArr });
 				// salva subtarefas criadas no modo temporário
 				for (const s of subtasks) {
 					if (s._temp) await api.post(`/api/tasks/${saved.id}/subtasks`, { title: s.title });
@@ -414,6 +452,7 @@ function helpContent() {
 		['Alt + N', 'Nova tarefa'],
 		['Alt + C', 'Nova coluna'],
 		['Alt + T', 'Abrir gerenciador de tags'],
+		['Alt + S', 'Compartilhar quadro'],
 		['Alt + Q', 'Novo quadro'],
 		['Alt + H', 'Abrir ajuda'],
 		['Esc', 'Fechar modais']

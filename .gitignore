@@ -30,3 +30,5 @@ tmp/
 
 # MySQL dumps
 *.sql
+
+avatar*

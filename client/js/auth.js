@@ -36,7 +36,7 @@ const AuthService = {
         throw new Error(data.error || 'Erro ao fazer login');
       }
       
-      // Armazena token e dados do usuário
+  // Armazena token e dados do usuário (inclui is_admin)
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       
@@ -61,7 +61,7 @@ const AuthService = {
         throw new Error(data.error || 'Erro ao registrar usuário');
       }
       
-      // Armazena token e dados do usuário
+  // Armazena token e dados do usuário (inclui is_admin)
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       

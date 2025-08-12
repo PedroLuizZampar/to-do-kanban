@@ -4,6 +4,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const mysql = require('mysql2/promise');
+const bcrypt = require('bcryptjs');
 
 async function main() {
 	const DB_HOST = process.env.DB_HOST || 'localhost';
@@ -30,7 +31,19 @@ async function main() {
 	const sql = fs.readFileSync(filePath, 'utf8');
 	await connection.query(sql);
 
-	console.log('Banco e schema aplicados com sucesso.');
+	// Seed: cria usuário admin padrão se não existir
+	const [users] = await connection.query('SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1', ['admin', 'pedroluizzampar@gmail.com']);
+	if (!users || users.length === 0) {
+		const adminPasswordPlain = 'Jorge#80';
+		const hashed = await bcrypt.hash(adminPasswordPlain, 12);
+		await connection.query(
+			'INSERT INTO users (username, email, password, is_admin) VALUES (?, ?, ?, 1)',
+			['admin', 'pedroluizzampar@gmail.com', hashed]
+		);
+		console.log('Usuário admin criado: admin / pedroluizzampar@gmail.com');
+	}
+
+	console.log('Banco, schema e seed aplicados com sucesso.');
 	await connection.end();
 }
 
