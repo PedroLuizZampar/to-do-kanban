@@ -71,7 +71,7 @@ const Modal = (() => {
 	// Confirm customizado (botão confirmar fica danger quando é exclusão; cancelar é neutro)
 	async function confirmModal({ title = 'Confirmar', message = 'Tem certeza?', confirmText = 'Confirmar', cancelText = 'Cancelar' } = {}) {
 		return new Promise((resolve) => {
-			const okIsDelete = /^\s*excluir/i.test(confirmText);
+			const okIsDelete = /^\s*(excluir|redefinir)/i.test(confirmText);
 			const ok = el('button', { class: okIsDelete ? 'btn-danger' : '' }, confirmText);
 			const cancel = el('button', {}, cancelText);
 			ok.addEventListener('click', () => { Modal.close(); resolve(true); });
@@ -195,7 +195,7 @@ async function taskForm(initial = {}) {
 	const subtasks = (initial.subtasks || []).map(s => ({ ...s }));
 	const checklistWrap = el('div', { class: 'checklist' });
 	const inputNew = el('input', { type: 'text', placeholder: 'Nova subtarefa' });
-	const btnAddSub = el('button', { class: 'btn-ghost' }, 'Adicionar');
+	const btnAddSub = el('button', {}, 'Adicionar');
 	btnAddSub.addEventListener('click', async (e) => {
 		e.preventDefault();
 		const text = inputNew.value.trim();
@@ -312,25 +312,25 @@ async function taskForm(initial = {}) {
 
 	const content = el('div', {}, [
 		el('h3', {}, initial.id ? 'Editar tarefa' : 'Nova tarefa'),
-		el('div', { class: 'row' }, [el('label', {}, 'Título'), title]),
-		el('div', { class: 'row' }, [el('label', {}, 'Descrição'), description]),
-		el('div', { class: 'row' }, [el('label', {}, 'Coluna'), cats.length ? catDropdown : el('div', { class: 'muted' }, 'Nenhuma coluna disponível')]),
+		el('div', { class: 'row' }, [el('h5', {}, 'Título'), title]),
+		el('div', { class: 'row' }, [el('h5', {}, 'Descrição'), description]),
+		el('div', { class: 'row' }, [el('h5', {}, 'Coluna'), cats.length ? catDropdown : el('div', { class: 'muted' }, 'Nenhuma coluna disponível')]),
 		el('div', { class: 'row' }, [
-			el('label', {}, 'Responsáveis'),
-			el('div', { class: 'tag-dual' }, [
-				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Disponíveis'), assigneesAvailable]),
-				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Atribuídos'), assigneesSelected]),
-			])
-		]),
-		el('div', { class: 'row' }, [
-			el('label', {}, 'Checklist'),
+			el('h5', {}, 'Checklist'),
 			el('div', {}, [
 				checklistWrap,
 				el('div', { class: 'checklist-actions' }, [inputNew, btnAddSub])
 			])
 		]),
 		el('div', { class: 'row' }, [
-			el('label', {}, 'Tags'),
+			el('h5', {}, 'Responsáveis'),
+			el('div', { class: 'tag-dual' }, [
+				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Disponíveis'), assigneesAvailable]),
+				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Atribuídos'), assigneesSelected]),
+			])
+		]),
+		el('div', { class: 'row' }, [
+			el('h5', {}, 'Tags'),
 			el('div', { class: 'tag-dual' }, [
 				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Disponíveis'), availableWrap]),
 				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Adicionadas'), selectedWrap]),
@@ -390,7 +390,10 @@ async function taskForm(initial = {}) {
 window.$modals = { Modal, categoryForm, tagForm, taskForm };
 window.$modals.confirm = confirmModal;
 window.$modals.alert = alertModal;
-window.$modals.toast = Toast;
+// Expor toast como função (compatível com window.$modals.toast('msg')) e também com .show/.hide
+window.$modals.toast = (message, opts) => Toast.show(message, opts);
+window.$modals.toast.show = (message, opts) => Toast.show(message, opts);
+window.$modals.toast.hide = () => Toast.hide();
 
 async function tagManager() {
 	const root = el('div', {});
@@ -402,11 +405,11 @@ async function tagManager() {
 		tags.forEach(t => {
 			const left = el('div', { class: 'tag-left' }, [pill(t.name, t.color), t.description ? el('small', { class: 'muted' }, ` — ${t.description}`) : '']);
             const actions = el('div', { class: 'tag-actions' }, [
-                el('button', { class: 'btn-ghost', title: 'Editar tag', onclick: async () => { Modal.open(tagForm(t)); } }, [
+                el('button', { class: 'btn-ghost btn-edit', title: 'Editar tag', onclick: async () => { Modal.open(tagForm(t)); } }, [
                     el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'edit'),
                     el('span', { class: 'sr-only' }, 'Editar')
                 ]),
-                el('button', { class: 'btn-ghost', title: 'Excluir tag', onclick: async () => {
+                el('button', { class: 'btn-ghost btn-delete', title: 'Excluir tag', onclick: async () => {
                     const ok = await confirmModal({ title: 'Excluir tag', message: `Excluir a tag "${t.name}"?`, confirmText: 'Excluir' });
                     if (!ok) return;
                     await api.del(`/api/tags/${t.id}`);

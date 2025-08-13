@@ -32,8 +32,8 @@ const Board = (() => {
 				await api.post(`/api/tasks/${taskId}/move`, { toCategoryId: cat.id, toPosition });
 				await load();
 			});
-			$col.querySelector('.btn-edit-column').addEventListener('click', () => Modal.open(categoryForm(cat)));
-			$col.querySelector('.btn-delete-column').addEventListener('click', async () => {
+			$col.querySelector('.btn-edit').addEventListener('click', () => Modal.open(categoryForm(cat)));
+			$col.querySelector('.btn-delete').addEventListener('click', async () => {
 				const ok = await $modals.confirm({
 					title: 'Excluir coluna',
 					message: 'Excluir esta coluna também excluirá todas as tarefas nela. Esta ação não pode ser desfeita.',
@@ -48,6 +48,14 @@ const Board = (() => {
 			$col.querySelector('.btn-add-card').addEventListener('click', async () => {
 				Modal.open(await taskForm({ category_id: cat.id }));
 			});
+
+			// Ajusta cor do texto do botão com base na cor da coluna
+			const btnAdd = $col.querySelector('.btn-add-card');
+			const colColor = cat.color || getComputedStyle($col).getPropertyValue('--col');
+			if (colColor) {
+				const txtColor = window.$utils.getContrastTextColor(String(colColor).trim());
+				btnAdd.style.color = txtColor;
+			}
 
 			tasksByCategory(cat.id).forEach(t => cards.append(renderCard(t)));
 			board.append($col);
@@ -117,11 +125,11 @@ const Board = (() => {
 		}
 		$card.insertBefore(avatarsWrap, $card.querySelector('.card-actions'));
 		$card.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', String(task.id)));
-		$card.querySelector('.btn-edit-card').addEventListener('click', async () => {
+		$card.querySelector('.btn-edit').addEventListener('click', async () => {
 			const fresh = state.tasks.find(x => x.id === task.id);
 			Modal.open(await taskForm(fresh));
 		});
-		$card.querySelector('.btn-delete-card').addEventListener('click', async () => {
+		$card.querySelector('.btn-delete').addEventListener('click', async () => {
 			const ok = await $modals.confirm({ title: 'Excluir tarefa', message: 'Tem certeza que deseja excluir esta tarefa?', confirmText: 'Excluir' });
 			if (!ok) return;
 			await api.del(`/api/tasks/${task.id}`);

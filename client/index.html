@@ -86,11 +86,11 @@
 						<h2 class="column-title"></h2>
 					</div>
 					<div class="column-actions">
-						<button class="btn-ghost btn-edit-column" title="Editar coluna">
+						<button class="btn-ghost btn-edit" title="Editar coluna">
 							<span class="material-symbols-outlined" aria-hidden="true">edit</span>
 							<span class="sr-only">Editar</span>
 						</button>
-						<button class="btn-ghost btn-danger btn-delete-column" title="Excluir coluna">
+						<button class="btn-ghost btn-danger btn-delete" title="Excluir coluna">
 							<span class="material-symbols-outlined" aria-hidden="true">delete</span>
 							<span class="sr-only">Excluir</span>
 						</button>
@@ -115,11 +115,11 @@
 				</div>
 				<div class="card-tags"></div>
 				<div class="card-actions">
-					<button class="btn-ghost btn-edit-card" title="Editar tarefa">
+					<button class="btn-ghost btn-edit" title="Editar tarefa">
 						<span class="material-symbols-outlined" aria-hidden="true">edit</span>
 						<span class="sr-only">Editar</span>
 					</button>
-					<button class="btn-ghost btn-danger btn-delete-card" title="Excluir tarefa">
+					<button class="btn-ghost btn-delete" title="Excluir tarefa">
 						<span class="material-symbols-outlined" aria-hidden="true">delete</span>
 						<span class="sr-only">Excluir</span>
 					</button>
@@ -178,24 +178,29 @@
 					// Nome do usuário
 					document.getElementById('username-display').textContent = user.username;
 					
-					// Toggle menu de usuário
+					// Toggle menu de usuário APENAS no avatar/ícone
 					const userInfo = document.getElementById('user-info');
 					const userMenu = document.getElementById('user-menu');
 					
-					userInfo.addEventListener('click', () => {
-						userMenu.classList.toggle('hidden');
+					// Remove qualquer clique anterior na div inteira, se existir
+					userInfo.replaceWith(userInfo.cloneNode(true));
+					// Reobter referências após clone
+					const userInfoNew = document.getElementById('user-info');
+					const avatarEl = document.getElementById('user-avatar');
+					const userMenuEl = document.getElementById('user-menu');
+
+					avatarEl.addEventListener('click', (e) => {
+						e.stopPropagation();
+						userMenuEl.classList.toggle('hidden');
 					});
 					
-					// Acessar Perfil
+					// Acessar Perfil via item do menu
 					document.getElementById('user-profile').addEventListener('click', () => {
 						window.location.href = '/profile.html';
 					});
 
-					// Clique no avatar abre perfil diretamente
-					avatar.addEventListener('click', (e) => {
-						e.stopPropagation();
-						window.location.href = '/profile.html';
-					});
+					// Remover navegação direta no avatar
+					// (Antes redirecionava para /profile.html; agora apenas abre o dropdown)
 
 					// Logout
 					document.getElementById('user-logout').addEventListener('click', () => {
@@ -204,8 +209,8 @@
 					
 					// Fecha menu ao clicar fora
 					document.addEventListener('click', (e) => {
-						if (!userInfo.contains(e.target)) {
-							userMenu.classList.add('hidden');
+						if (!userInfoNew.contains(e.target)) {
+							userMenuEl.classList.add('hidden');
 						}
 					});
 				}

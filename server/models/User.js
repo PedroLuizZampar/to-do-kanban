@@ -62,7 +62,7 @@ async function updateProfile(id, { username, email, password }) {
   return get(id);
 }
 
-// Atualiza avatar
+// Atualiza avatar (aceita null para remover)
 async function setAvatar(id, avatarUrl) {
   await db.query('UPDATE users SET avatar_url = ? WHERE id = ?', [avatarUrl, id]);
   return get(id);

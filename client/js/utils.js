@@ -132,4 +132,24 @@ function pill(text, color) {
 
 function sortByPosition(a, b) { return (a.position || 0) - (b.position || 0) || a.id - b.id; }
 
-window.$utils = { api, el, pill, sortByPosition, setBoardId, getBoardId };
+// Determina automaticamente a cor do texto (preto ou branco) para melhor contraste, puxando mais para branco
+function getContrastTextColor(bgColor) {
+	if (!bgColor) return '#FFFFFF';
+	let hex = bgColor.trim();
+	if (hex.startsWith('#')) {
+		hex = hex.slice(1);
+		if (hex.length === 3) hex = hex.split('').map(ch => ch + ch).join('');
+		if (hex.length === 8) hex = hex.slice(0, 6);
+		if (hex.length !== 6) return '#FFFFFF';
+		const r = parseInt(hex.slice(0,2), 16) / 255;
+		const g = parseInt(hex.slice(2,4), 16) / 255;
+		const b = parseInt(hex.slice(4,6), 16) / 255;
+		const [R, G, B] = [r, g, b].map(c => (c <= 0.03928 ? c/12.92 : Math.pow(((c + 0.055)/1.055), 2.4)));
+		const L = 0.2126 * R + 0.7152 * G + 0.0722 * B;
+		// Limite de luminância ainda mais baixo para favorecer branco
+		return L > 0.4 ? '#000000' : '#FFFFFF';
+	}
+	return '#FFFFFF';
+}
+
+window.$utils = { api, el, pill, sortByPosition, setBoardId, getBoardId, getContrastTextColor };

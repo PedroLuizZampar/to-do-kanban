@@ -27,6 +27,9 @@ router.put('/', profileController.updateProfile);
 // Upload de avatar
 router.post('/avatar', upload.single('avatar'), profileController.uploadAvatar);
 
+// Remover avatar
+router.delete('/avatar', profileController.deleteAvatar);
+
 // Excluir conta
 router.delete('/', profileController.deleteAccount);
 

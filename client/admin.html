@@ -17,7 +17,7 @@
         <span>Admin</span>
       </h1>
       <div class="actions">
-        <button id="btn-logout" class="btn-ghost">
+        <button id="btn-logout" class="btn-danger" title="Sair">
           <span class="material-symbols-outlined">logout</span>
           <span>Sair</span>
         </button>
@@ -41,23 +41,25 @@
       </table>
     </main>
 
+    <!-- Containers de toast e modal padrão do projeto -->
+    <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+    <div id="modal-backdrop" class="modal-backdrop hidden"></div>
+    <div id="modal" class="modal hidden" role="dialog" aria-modal="true"></div>
+
     <script src="/js/auth.js"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/js/modals.js"></script>
     <script>
-      const api = {
-        async listUsers() {
-          const r = await fetch('/api/admin/users', { headers: { 'Authorization': 'Bearer ' + window.$auth.getToken() } });
-          if (!r.ok) throw new Error((await r.json()).error || 'Erro ao listar usuários');
-          return r.json();
-        },
-        async resetPassword(id) {
-          const r = await fetch('/api/admin/users/' + id + '/reset-password', { method: 'POST', headers: { 'Authorization': 'Bearer ' + window.$auth.getToken() } });
-          if (!r.ok) throw new Error((await r.json()).error || 'Erro ao resetar senha');
-        },
-        async removeUser(id) {
-          const r = await fetch('/api/admin/users/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + window.$auth.getToken() } });
-          if (!r.ok) throw new Error((await r.json()).error || 'Erro ao remover usuário');
-        }
-      };
+      // Usa o helper global "api" de utils.js
+      async function listUsers() {
+        return api.get('/api/admin/users');
+      }
+      async function resetPasswordUser(id) {
+        return api.post('/api/admin/users/' + id + '/reset-password', {});
+      }
+      async function removeUserById(id) {
+        return api.del('/api/admin/users/' + id);
+      }
 
       function ensureAdmin() {
         if (!window.$auth.checkAuth()) return false;
@@ -77,8 +79,8 @@
             <td style="padding:8px; border-bottom:1px solid var(--border);">${u.email}</td>
             <td style="padding:8px; border-bottom:1px solid var(--border);">${u.is_admin ? 'Sim' : 'Não'}</td>
             <td style="padding:8px; border-bottom:1px solid var(--border); display:flex; gap:8px;">
-              <button class="btn-ghost" data-act="reset" data-id="${u.id}"><span class="material-symbols-outlined">key</span> Resetar senha</button>
-              <button class="btn-danger" data-act="remove" data-id="${u.id}"><span class="material-symbols-outlined">delete</span> Remover</button>
+              <button data-act="reset" data-id="${u.id}" data-username="${u.username}"><span class="material-symbols-outlined">key</span> Resetar senha</button>
+              <button class="btn-danger" data-act="remove" data-id="${u.id}" data-username="${u.username}"><span class="material-symbols-outlined">delete</span> Remover</button>
             </td>`;
           body.appendChild(tr);
         });
@@ -86,7 +88,7 @@
 
       async function load() {
         try {
-          const users = await api.listUsers();
+          const users = await listUsers();
           renderUsers(users);
         } catch (e) {
           const el = document.getElementById('users-error');
@@ -104,18 +106,37 @@
           if (!btn) return;
           const id = Number(btn.dataset.id);
           const act = btn.dataset.act;
+          const username = btn.dataset.username || 'usuário';
           try {
             if (act === 'reset') {
-              await api.resetPassword(id);
-              alert('Senha redefinida para: mudar123');
-            } else if (act === 'remove') {
-              if (confirm('Tem certeza que deseja remover este usuário?')) {
-                await api.removeUser(id);
-                await load();
+              const ok = await (window.$modals?.confirm ? window.$modals.confirm({
+                title: 'Redefinir senha',
+                message: `Redefinir a senha de \"${username}\" para \"mudar123\"?`,
+                confirmText: 'Redefinir',
+                cancelText: 'Cancelar'
+              }) : Promise.resolve(confirm('Redefinir a senha para "mudar123"?')));
+              if (!ok) return;
+              await resetPasswordUser(id);
+              if (window.$modals?.alert) {
+                await window.$modals.alert({ title: 'Senha redefinida', message: 'A nova senha é: mudar123' });
+              } else {
+                alert('A nova senha é: mudar123');
               }
+            } else if (act === 'remove') {
+              const ok = await (window.$modals?.confirm ? window.$modals.confirm({
+                title: 'Remover usuário',
+                message: `Remover o usuário \"${username}\"? Esta ação é irreversível.`,
+                confirmText: 'Excluir',
+                cancelText: 'Cancelar'
+              }) : Promise.resolve(confirm('Remover este usuário?')));
+              if (!ok) return;
+              await removeUserById(id);
+              if (window.$modals?.toast) window.$modals.toast('Usuário removido');
+              await load();
             }
           } catch (err) {
-            alert(err.message || 'Erro na ação');
+            if (window.$modals?.alert) await window.$modals.alert({ title: 'Erro', message: err.message || 'Erro na ação' });
+            else alert(err.message || 'Erro na ação');
           }
         });
 

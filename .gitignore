@@ -31,4 +31,5 @@ tmp/
 # MySQL dumps
 *.sql
 
-avatar*
+# Pasta uploads
+/uploads

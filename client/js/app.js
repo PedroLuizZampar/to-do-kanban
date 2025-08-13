@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				<div class="title" style="${b.color ? `color:${b.color}` : ''}"><span class="material-symbols-outlined" aria-hidden="true">space_dashboard</span>${b.name}</div>
 				<div class="board-actions">
 					<button class="btn-ghost btn-edit" title="Renomear"><span class="material-symbols-outlined">edit</span></button>
-					<button class="btn-ghost btn-danger btn-del" title="Excluir"><span class="material-symbols-outlined">delete</span></button>
+					<button class="btn-ghost btn-delete" title="Excluir"><span class="material-symbols-outlined">delete</span></button>
 				</div>`;
 			item.addEventListener('click', (e) => {
 				if ((e.target.closest && e.target.closest('.board-actions'))) return; // ignora clique em ações
@@ -26,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				$board.load();
 			});
 			item.querySelector('.btn-edit').addEventListener('click', (e) => { e.stopPropagation(); Modal.open($modals.boardForm ? $modals.boardForm(b) : (function(){})()); });
-			item.querySelector('.btn-del').addEventListener('click', async (e) => {
+			item.querySelector('.btn-delete').addEventListener('click', async (e) => {
 				e.stopPropagation();
 				const ok = await $modals.confirm({ title: 'Excluir quadro', message: `Excluir "${b.name}"? Isso removerá tudo neste quadro.`, confirmText: 'Excluir' });
 				if (!ok) return;
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		await refreshUsers();
 		root.append(list);
 		root.append(el('footer', {}, [
-			el('button', { class: 'btn-ghost', onclick: Modal.close }, 'Cancelar'),
+			el('button', { class: 'btn-danger', onclick: Modal.close }, 'Cancelar'),
 			el('button', { onclick: async () => {
 				if (!selected.size) { await $modals.alert({ title: 'Selecione', message: 'Escolha pelo menos um usuário.' }); return; }
 				await fetch(`/api/boards/${boardId}/invite`, { method: 'POST', headers: api.getHeaders(), body: JSON.stringify({ userIds: Array.from(selected) }) });
