@@ -123,7 +123,7 @@ async function reorder(categoryId, orderIds) {
 async function setTags(taskId, tagIds) {
 	await db.query('DELETE FROM task_tags WHERE task_id = ?', [taskId]);
 	for (const tid of tagIds || []) {
-		await db.query('INSERT IGNORE INTO task_tags (task_id, tag_id) VALUES (?,?)', [taskId, tid]);
+		await db.query('INSERT INTO task_tags (task_id, tag_id) VALUES (?,?) ON CONFLICT (task_id, tag_id) DO NOTHING', [taskId, tid]);
 	}
 	return get(taskId);
 }
@@ -131,7 +131,7 @@ async function setTags(taskId, tagIds) {
 async function setAssignees(taskId, userIds) {
 	await db.query('DELETE FROM task_assignees WHERE task_id = ?', [taskId]);
 	for (const uid of userIds || []) {
-		await db.query('INSERT IGNORE INTO task_assignees (task_id, user_id) VALUES (?,?)', [taskId, uid]);
+		await db.query('INSERT INTO task_assignees (task_id, user_id) VALUES (?,?) ON CONFLICT (task_id, user_id) DO NOTHING', [taskId, uid]);
 	}
 	// Criar notificações para os usuários atribuídos
 	const task = await get(taskId);

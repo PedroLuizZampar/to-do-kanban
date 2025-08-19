@@ -1,6 +1,6 @@
-# Kanban de Tarefas (Node.js + MySQL + HTML/CSS/JS)
+# Kanban de Tarefas (Node.js + PostgreSQL + HTML/CSS/JS)
 
-Aplicação Kanban com backend em Node.js/Express e banco MySQL, e frontend leve em HTML/CSS/JS (sem framework). Suporta:
+Aplicação Kanban com backend em Node.js/Express e banco PostgreSQL, e frontend leve em HTML/CSS/JS (sem framework). Suporta:
 
 - CRUD de Categorias (colunas) com ordenação arrastável e persistida
 - CRUD de Tags, com cor e descrição
@@ -10,7 +10,7 @@ Aplicação Kanban com backend em Node.js/Express e banco MySQL, e frontend leve
 ## Requisitos
 
 - Node.js 18+
-- MySQL 8+ (ou 5.7)
+- PostgreSQL 13+
 
 ## Configuração
 
@@ -24,10 +24,11 @@ Aplicação Kanban com backend em Node.js/Express e banco MySQL, e frontend leve
 2. Configure variáveis de ambiente (opcional). Por padrão:
 
 	- DB_HOST=localhost
-	- DB_USER=root
+	- DB_USER=postgres
 	- DB_PASSWORD=(vazio)
 	- DB_NAME=kanban
-	- DB_PORT=3306
+	- DB_PORT=5432
+	- DB_SSL=false
 
 	Crie um arquivo `.env` na raiz se quiser sobrescrever:
 
@@ -36,7 +37,8 @@ Aplicação Kanban com backend em Node.js/Express e banco MySQL, e frontend leve
 	DB_USER=seu_usuario
 	DB_PASSWORD=sua_senha
 	DB_NAME=kanban
-	DB_PORT=3306
+	DB_PORT=5432
+	DB_SSL=false
 	PORT=3000
 	```
 
@@ -74,9 +76,8 @@ O script usa `npm ci` (se existir package-lock.json) ou `npm install`, e executa
 
 ## Estrutura
 
-- `server/` Express, rotas, controladores e modelos (acesso MySQL via mysql2/promise).
-- `client/` Frontend estático (HTML/CSS/JS) com drag-and-drop nativo.
-- `database/schema.sql` Schema e seeds iniciais.
+- `server/` Express, rotas, controladores e modelos (acesso PostgreSQL via pg Pool).
+- `database/schema.postgres.sql` Schema e seeds iniciais para PostgreSQL.
 - `scripts/install.ps1` Script para instalar e subir tudo automaticamente no Windows.
 - `requirements-node.txt` Lista textual das dependências (documentação).
 - `.gitignore` Ignora node_modules, .env e artefatos locais.

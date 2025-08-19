@@ -1,7 +1,7 @@
 {
 	"name": "to-do-kanban",
 	"version": "1.0.0",
-	"description": "Kanban de tarefas com Node.js + MySQL (backend) e HTML/CSS/JS (frontend)",
+		"description": "Kanban de tarefas com Node.js + PostgreSQL (backend) e HTML/CSS/JS (frontend)",
 	"private": true,
 	"type": "commonjs",
 	"scripts": {
@@ -17,7 +17,7 @@
 		"jsonwebtoken": "^9.0.2",
 		"multer": "^1.4.5-lts.1",
 		"morgan": "^1.10.0",
-		"mysql2": "^3.11.0"
+		"pg": "^8.12.0"
 	},
 	"devDependencies": {
 		"nodemon": "^3.1.0"

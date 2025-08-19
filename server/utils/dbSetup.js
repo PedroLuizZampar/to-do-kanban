@@ -3,48 +3,50 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const mysql = require('mysql2/promise');
+const { Client } = require('pg');
 const bcrypt = require('bcryptjs');
+
+async function ensureDatabaseExists({ host, user, password, port, database, ssl }) {
+	// Conecta no postgres padrão para criar o DB se necessário
+	const client = new Client({ host, user, password, port, database: 'postgres', ssl });
+	await client.connect();
+	const existsRes = await client.query('SELECT 1 FROM pg_database WHERE datname = $1', [database]);
+	if (existsRes.rowCount === 0) {
+		await client.query(`CREATE DATABASE ${database}`);
+	}
+	await client.end();
+}
 
 async function main() {
 	const DB_HOST = process.env.DB_HOST || 'localhost';
-	const DB_USER = process.env.DB_USER || 'root';
+	const DB_USER = process.env.DB_USER || 'postgres';
 	const DB_PASSWORD = process.env.DB_PASSWORD || '';
-	const DB_PORT = process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306;
+	const DB_PORT = process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432;
 	const DB_NAME = process.env.DB_NAME || 'kanban';
+	const DB_SSL = /^true$/i.test(process.env.DB_SSL || 'false') ? { rejectUnauthorized: false } : undefined;
 
-	// Conecta sem database para criar se necessário
-	const connection = await mysql.createConnection({
-		host: DB_HOST,
-		user: DB_USER,
-		password: DB_PASSWORD,
-		port: DB_PORT,
-		multipleStatements: true,
-	});
+	await ensureDatabaseExists({ host: DB_HOST, user: DB_USER, password: DB_PASSWORD, port: DB_PORT, database: DB_NAME, ssl: DB_SSL });
 
-	await connection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
-	await connection.query(`USE \`${DB_NAME}\`;`);
+	const client = new Client({ host: DB_HOST, user: DB_USER, password: DB_PASSWORD, port: DB_PORT, database: DB_NAME, ssl: DB_SSL });
+	await client.connect();
 
-	const schemaPath = path.join(__dirname, '..', '..', 'database', 'schema.sql');
-	const altSchemaPath = path.join(__dirname, '..', '..', '..', 'database', 'schema.sql');
+	const schemaPath = path.join(__dirname, '..', '..', 'database', 'schema.postgres.sql');
+	const altSchemaPath = path.join(__dirname, '..', '..', '..', 'database', 'schema.postgres.sql');
 	const filePath = fs.existsSync(schemaPath) ? schemaPath : altSchemaPath;
 	const sql = fs.readFileSync(filePath, 'utf8');
-	await connection.query(sql);
+	await client.query(sql);
 
 	// Seed: cria usuário admin padrão se não existir
-	const [users] = await connection.query('SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1', ['admin', 'pedroluizzampar@gmail.com']);
-	if (!users || users.length === 0) {
+	const ures = await client.query('SELECT id FROM users WHERE username = $1 OR email = $2 LIMIT 1', ['admin', 'pedroluizzampar@gmail.com']);
+	if (ures.rowCount === 0) {
 		const adminPasswordPlain = 'Jorge#80';
 		const hashed = await bcrypt.hash(adminPasswordPlain, 12);
-		await connection.query(
-			'INSERT INTO users (username, email, password, is_admin) VALUES (?, ?, ?, 1)',
-			['admin', 'pedroluizzampar@gmail.com', hashed]
-		);
+		await client.query('INSERT INTO users (username, email, password, is_admin) VALUES ($1,$2,$3, true)', ['admin', 'pedroluizzampar@gmail.com', hashed]);
 		console.log('Usuário admin criado: admin / pedroluizzampar@gmail.com');
 	}
 
 	console.log('Banco, schema e seed aplicados com sucesso.');
-	await connection.end();
+	await client.end();
 }
 
 main().catch((err) => {

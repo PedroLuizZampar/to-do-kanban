@@ -1,27 +1,27 @@
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 
 const {
 	DB_HOST = 'localhost',
-	DB_USER = 'root',
-	DB_PASSWORD = 'Jorge#80',
+	DB_USER = 'postgres',
+	DB_PASSWORD = '',
 	DB_NAME = 'kanban',
-	DB_PORT = 3306,
+	DB_PORT = 5432,
+	DB_SSL = 'false',
 } = process.env;
 
 let pool;
 
 async function getPool() {
 	if (!pool) {
-		pool = mysql.createPool({
+		pool = new Pool({
 			host: DB_HOST,
 			user: DB_USER,
 			password: DB_PASSWORD,
 			database: DB_NAME,
-			port: DB_PORT,
-			waitForConnections: true,
-			connectionLimit: 10,
-			queueLimit: 0,
-			timezone: 'Z',
+			port: Number(DB_PORT),
+			ssl: /^true$/i.test(DB_SSL) ? { rejectUnauthorized: false } : undefined,
+			max: 10,
+			idleTimeoutMillis: 30000,
 		});
 	}
 	return pool;

@@ -7,7 +7,7 @@ async function list(taskId) {
 async function create(taskId, title) {
     const max = await db.query('SELECT COALESCE(MAX(position),0) AS maxp FROM subtasks WHERE task_id = ?', [taskId]);
     const position = (max[0]?.maxp || 0) + 1;
-    const r = await db.query('INSERT INTO subtasks (task_id, title, done, position) VALUES (?,?,0,?)', [taskId, title, position]);
+    const r = await db.query('INSERT INTO subtasks (task_id, title, done, position) VALUES (?,?,FALSE,?)', [taskId, title, position]);
     return get(r.insertId);
 }
 
@@ -21,7 +21,7 @@ async function update(id, { title, done }) {
     const cur = await get(id);
     if (!cur) return null;
     const newTitle = typeof title === 'string' ? title : cur.title;
-    const newDone = typeof done === 'boolean' ? (done ? 1 : 0) : cur.done;
+    const newDone = typeof done === 'boolean' ? (done ? true : false) : cur.done;
     await db.query('UPDATE subtasks SET title = ?, done = ? WHERE id = ?', [newTitle, newDone, id]);
     return get(id);
 }

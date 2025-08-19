@@ -81,7 +81,7 @@ async function listUsersToInvite(boardId, requesterId) {
   return db.query(
     `SELECT u.id, u.username, u.email, u.avatar_url
      FROM users u
-     WHERE u.id <> ? AND u.is_admin = 0
+  WHERE u.id <> ? AND u.is_admin = FALSE
        AND u.id NOT IN (SELECT user_id FROM board_members WHERE board_id = ?)
        AND u.id NOT IN (SELECT invited_user_id FROM board_invites WHERE board_id = ? AND status = 'pending')
      ORDER BY u.username ASC`,
@@ -94,7 +94,7 @@ async function inviteUsers(boardId, invitedIds, invitedBy) {
   if (!b) throw new Error('Sem acesso');
   for (const uid of invitedIds) {
     await db.query(
-      'INSERT IGNORE INTO board_invites (board_id, invited_user_id, invited_by) VALUES (?,?,?)',
+      'INSERT INTO board_invites (board_id, invited_user_id, invited_by) VALUES (?,?,?) ON CONFLICT (board_id, invited_user_id) DO NOTHING',
       [boardId, uid, invitedBy]
     );
   }
@@ -118,10 +118,10 @@ async function respondInvite(inviteId, userId, accept) {
   const inv = rows[0];
   if (!inv || inv.status !== 'pending') return null;
   if (accept) {
-    await db.query('UPDATE board_invites SET status = "accepted" WHERE id = ?', [inviteId]);
-    await db.query('INSERT IGNORE INTO board_members (board_id, user_id, role) VALUES (?,?,"editor")', [inv.board_id, userId]);
+  await db.query('UPDATE board_invites SET status = \'accepted\' WHERE id = ?', [inviteId]);
+  await db.query('INSERT INTO board_members (board_id, user_id, role) VALUES (?,?,\'editor\') ON CONFLICT (board_id, user_id) DO NOTHING', [inv.board_id, userId]);
   } else {
-    await db.query('UPDATE board_invites SET status = "declined" WHERE id = ?', [inviteId]);
+  await db.query('UPDATE board_invites SET status = \'declined\' WHERE id = ?', [inviteId]);
   }
   return true;
 }
