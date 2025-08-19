@@ -13,9 +13,13 @@ module.exports = {
     try {
   const taskId = Number(req.params.taskId);
   if (!Number.isFinite(taskId)) return res.status(400).json({ error: 'taskId inválido' });
-      const { title } = req.body;
-      if (!title || !title.trim()) return res.status(400).json({ error: 'title é obrigatório' });
-      const data = await Subtask.create(taskId, title.trim());
+  const { title, done } = req.body;
+  if (!title || !title.trim()) return res.status(400).json({ error: 'title é obrigatório' });
+  // Verifica duplicado (case-insensitive) dentro da mesma tarefa
+  const existing = await Subtask.list(taskId);
+  const lower = title.trim().toLowerCase();
+  if (existing.find(s => (s.title || '').trim().toLowerCase() === lower)) return res.status(409).json({ error: 'Já existe uma subtarefa com esse título neste cartão' });
+  const data = await Subtask.create(taskId, title.trim(), typeof done === 'boolean' ? done : undefined);
       res.status(201).json(data);
     } catch (e) { next(e); }
   },

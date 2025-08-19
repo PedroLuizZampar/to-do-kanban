@@ -4,10 +4,11 @@ async function list(taskId) {
     return db.query('SELECT * FROM subtasks WHERE task_id = ? ORDER BY position ASC, id ASC', [taskId]);
 }
 
-async function create(taskId, title) {
+async function create(taskId, title, done) {
     const max = await db.query('SELECT COALESCE(MAX(position),0) AS maxp FROM subtasks WHERE task_id = ?', [taskId]);
     const position = (max[0]?.maxp || 0) + 1;
-    const r = await db.query('INSERT INTO subtasks (task_id, title, done, position) VALUES (?,?,FALSE,?)', [taskId, title, position]);
+    const doneVal = typeof done === 'boolean' ? (done ? true : false) : false;
+    const r = await db.query('INSERT INTO subtasks (task_id, title, done, position) VALUES (?,?,?,?)', [taskId, title, doneVal, position]);
     return get(r.insertId);
 }
 

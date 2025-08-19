@@ -95,7 +95,8 @@ const Modal = (() => {
 					el('p', {}, message),
 					el('footer', {}, [ok])
 				]);
-				Modal.open(content, { replace: true });
+				// Abre empilhado para não fechar o modal atual (ex.: modal do cartão)
+				Modal.open(content, { replace: false });
 			});
 		}
 
@@ -189,7 +190,141 @@ async function taskForm(initial = {}) {
 	let members = [];
 	try { members = await api.get(`/api/boards/${window.$utils.getBoardId()}/invite/users?mode=members`); } catch {}
 	const title = el('input', { value: initial.title || '', placeholder: 'Título' });
-	const description = el('textarea', { placeholder: 'Descrição' }, initial.description || '');
+
+	// Editor Markdown leve apenas para a descrição de cards
+	function escapeHtml(str) {
+		return (str || '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch]));
+	}
+	function mdToHtml(md) {
+		if (!md) return '';
+		let s = escapeHtml(md);
+		// code blocks (```) multiline
+		s = s.replace(/```([\s\S]*?)```/g, (m, p1) => `<pre><code>${p1.replace(/\n/g,'<br>')}</code></pre>`);
+		// inline code `code`
+		s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+		// headings
+		s = s.replace(/^######\s+(.*)$/gm, '<h6>$1</h6>');
+		s = s.replace(/^#####\s+(.*)$/gm, '<h5>$1</h5>');
+		s = s.replace(/^####\s+(.*)$/gm, '<h4>$1</h4>');
+		s = s.replace(/^###\s+(.*)$/gm, '<h3>$1</h3>');
+		s = s.replace(/^##\s+(.*)$/gm, '<h2>$1</h2>');
+		s = s.replace(/^#\s+(.*)$/gm, '<h1>$1</h1>');
+		// bold **text**
+		s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+		// italic *text* or _text_
+		s = s.replace(/(^|\W)\*([^*]+)\*(?=\W|$)/g, '$1<em>$2</em>');
+		s = s.replace(/(^|\W)_([^_]+)_(?=\W|$)/g, '$1<em>$2</em>');
+		// underline ++text++ (custom)
+		s = s.replace(/\+\+([^+]+)\+\+/g, '<u>$1</u>');
+		// strikethrough ~~text~~
+		s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+		// links [text](url)
+		s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1<\/a>');
+		// unordered lists
+		s = s.replace(/(^|\n)(?:-\s+.+(?:\n|$))+?/g, (block) => {
+			const items = block.trim().split(/\n/).map(l => l.replace(/^[-*]\s+/, '').trim()).filter(Boolean);
+			if (items.length <= 1) return block; return '\n<ul>' + items.map(i => `<li>${i}</li>`).join('') + '</ul>\n';
+		});
+		// ordered lists
+		s = s.replace(/(^|\n)(?:\d+\.\s+.+(?:\n|$))+?/g, (block) => {
+			const items = block.trim().split(/\n/).map(l => l.replace(/^\d+\.\s+/, '').trim()).filter(Boolean);
+			if (items.length <= 1) return block; return '\n<ol>' + items.map(i => `<li>${i}</li>`).join('') + '</ol>\n';
+		});
+		// line breaks
+		s = s.replace(/\n/g, '<br>');
+		return s;
+	}
+	function createMdToolbar(textarea, preview) {
+		function wrapSelection(start, end = start) {
+			const ta = textarea;
+			const { selectionStart, selectionEnd, value } = ta;
+			const before = value.slice(0, selectionStart);
+			const sel = value.slice(selectionStart, selectionEnd) || 'texto';
+			const after = value.slice(selectionEnd);
+			ta.value = before + start + sel + end + after;
+			ta.focus();
+			const pos = (before + start + sel + end).length;
+			ta.setSelectionRange(pos, pos);
+			ta.dispatchEvent(new Event('input'));
+		}
+		function prefixLines(prefix) {
+			const ta = textarea;
+			const { selectionStart, selectionEnd, value } = ta;
+			const startLine = value.lastIndexOf('\n', selectionStart - 1) + 1;
+			const endLine = value.indexOf('\n', selectionEnd);
+			const endPos = endLine === -1 ? value.length : endLine;
+			const block = value.slice(startLine, endPos);
+			const out = block.split('\n').map(l => l ? (prefix + ' ' + l) : l).join('\n');
+			ta.value = value.slice(0, startLine) + out + value.slice(endPos);
+			ta.focus();
+			ta.setSelectionRange(startLine, startLine + out.length);
+			ta.dispatchEvent(new Event('input'));
+		}
+		const tb = el('div', { class: 'md-toolbar' }, [
+			el('button', { title: 'Negrito (Ctrl+B)', onclick: (e) => { e.preventDefault(); wrapSelection('**', '**'); } }, 'B'),
+			el('button', { title: 'Itálico (Ctrl+I)', onclick: (e) => { e.preventDefault(); wrapSelection('*', '*'); } }, 'I'),
+			el('button', { title: 'Sublinhado', onclick: (e) => { e.preventDefault(); wrapSelection('++', '++'); } }, 'U'),
+			el('span', { class: 'md-sep' }, '|'),
+			el('button', { title: 'Código inline', onclick: (e) => { e.preventDefault(); wrapSelection('`', '`'); } }, '</>'),
+			el('button', { title: 'Lista', onclick: (e) => { e.preventDefault(); prefixLines('-'); } }, '•'),
+			el('button', { title: 'Lista numerada', onclick: (e) => { e.preventDefault(); prefixLines('1.'); } }, '1.'),
+			el('button', { title: 'Link', onclick: (e) => { e.preventDefault(); wrapSelection('[', '](https://)'); } }, '🔗')
+		]);
+		// atalhos simples
+		textarea.addEventListener('keydown', (e) => {
+			if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) { e.preventDefault(); wrapSelection('**', '**'); }
+			if (e.ctrlKey && (e.key === 'i' || e.key === 'I')) { e.preventDefault(); wrapSelection('*', '*'); }
+		});
+		return tb;
+	}
+	function createMarkdownEditor(initialText = '') {
+		const placeholderText = 'Digite aqui a descrição...';
+		const ta = el('textarea', { placeholder: placeholderText }, initialText || '');
+		const preview = el('div', { class: 'markdown-preview' });
+		const toolbar = createMdToolbar(ta, preview);
+		const root = el('div', { class: 'md-editor' }, [toolbar, el('div', { class: 'md-panels' }, [el('div', { class: 'md-input' }, ta), preview])]);
+		const render = () => {
+			const val = ta.value || '';
+			if (!val.trim()) {
+				preview.classList.add('empty');
+				preview.textContent = placeholderText;
+				return;
+			}
+			preview.classList.remove('empty');
+			preview.innerHTML = mdToHtml(val);
+		};
+		const setEditing = (on) => { root.classList.toggle('editing', !!on); };
+		// Render inicial e estado não editando
+		render();
+		setEditing(false);
+		// Entrar em edição ao clicar no preview (exceto se clicar em link)
+		preview.addEventListener('click', (e) => {
+			const a = e.target && e.target.closest ? e.target.closest('a') : null;
+			if (a) return; // deixa o link abrir
+			setEditing(true);
+			// foca a textarea após o frame para não interferir na navegação do clique
+			setTimeout(() => ta.focus(), 0);
+		});
+		// Manter preview atualizado
+		ta.addEventListener('input', render);
+		// Alterna classe de edição baseado no foco dentro do editor
+		let blurTimer;
+		root.addEventListener('focusin', (e) => {
+			if (blurTimer) clearTimeout(blurTimer);
+			const t = e.target;
+			// Só ativa edição quando o foco entrar na textarea (md-input) ou toolbar
+			if (t && (t.closest && (t.closest('.md-input') || t.closest('.md-toolbar')))) {
+				setEditing(true);
+			}
+		});
+		root.addEventListener('focusout', () => {
+			blurTimer = setTimeout(() => {
+				if (!root.contains(document.activeElement)) setEditing(false);
+			}, 80);
+		});
+		return { root, getValue: () => ta.value, setValue: (v) => { ta.value = v || ''; render(); } };
+	}
+	const descEditor = createMarkdownEditor(initial.description || '');
 
 	// Checklist (subtarefas)
 	const subtasks = (initial.subtasks || []).map(s => ({ ...s }));
@@ -200,9 +335,19 @@ async function taskForm(initial = {}) {
 		e.preventDefault();
 		const text = inputNew.value.trim();
 		if (!text) return;
+		// valida duplicidade local (case-insensitive)
+		const existsLocal = subtasks.some(s => (s.title || '').trim().toLowerCase() === text.toLowerCase());
+		if (existsLocal) { await alertModal({ title: 'Duplicado', message: 'Já existe uma subtarefa com esse título neste cartão.' }); return; }
 		if (initial.id) {
-			const s = await api.post(`/api/tasks/${initial.id}/subtasks`, { title: text });
+			try {
+				const s = await api.post(`/api/tasks/${initial.id}/subtasks`, { title: text });
 			subtasks.push(s);
+			} catch (e) {
+				let msg = 'Não foi possível adicionar a subtarefa.';
+				try { const j = JSON.parse(e.message); if (j.error) msg = j.error; } catch {}
+				await alertModal({ title: 'Erro', message: msg });
+				return;
+			}
 		} else {
 			// Novo task ainda não salvo: adiciona localmente
 			subtasks.push({ id: Date.now(), title: text, done: 0, _temp: true });
@@ -226,7 +371,7 @@ async function taskForm(initial = {}) {
 				s.title = txt.value;
 				if (initial.id && !s._temp) await api.put(`/api/subtasks/${s.id}`, { title: s.title });
 			});
-			const btnDel = el('button', { class: 'btn-ghost btn-danger', title: 'Remover' }, [el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'delete')]);
+			const btnDel = el('button', { class: 'btn-ghost btn-delete', title: 'Remover' }, [el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'delete')]);
 			btnDel.addEventListener('click', async (e) => {
 				e.preventDefault();
 				if (initial.id && !s._temp) await api.del(`/api/subtasks/${s.id}`);
@@ -313,7 +458,7 @@ async function taskForm(initial = {}) {
 	const content = el('div', {}, [
 		el('h3', {}, initial.id ? 'Editar tarefa' : 'Nova tarefa'),
 		el('div', { class: 'row' }, [el('h5', {}, 'Título'), title]),
-		el('div', { class: 'row' }, [el('h5', {}, 'Descrição'), description]),
+	el('div', { class: 'row' }, [el('h5', {}, 'Descrição'), descEditor.root]),
 		el('div', { class: 'row' }, [el('h5', {}, 'Coluna'), cats.length ? catDropdown : el('div', { class: 'muted' }, 'Nenhuma coluna disponível')]),
 		el('div', { class: 'row' }, [
 			el('h5', {}, 'Checklist'),
@@ -341,7 +486,7 @@ async function taskForm(initial = {}) {
 					el('button', { onclick: async () => {
 						if (!title.value.trim()) { await alertModal({ title: 'Campo obrigatório', message: 'Título é obrigatório.' }); return; }
 						if (!chosenCatId || !cats.length) { await alertModal({ title: 'Seleção necessária', message: 'Crie uma coluna antes de adicionar tarefas.' }); return; }
-				const payload = { title: title.value.trim(), description: description.value.trim(), category_id: Number(chosenCatId) };
+				const payload = { title: title.value.trim(), description: descEditor.getValue().trim(), category_id: Number(chosenCatId) };
 				try {
 					let saved;
 					if (initial.id) saved = await api.put(`/api/tasks/${initial.id}`, payload);
@@ -352,8 +497,18 @@ async function taskForm(initial = {}) {
 				const assigneesArr = Array.from(selectedAssignees);
 				await api.post(`/api/tasks/${saved.id}/assignees`, { userIds: assigneesArr });
 				// salva subtarefas criadas no modo temporário
+				// valida duplicidade antes de enviar
+				{
+					const seen = new Set();
+					for (const s of subtasks) {
+						const key = (s.title || '').trim().toLowerCase();
+						if (!key) continue;
+						if (seen.has(key)) { await alertModal({ title: 'Duplicado', message: 'Existem subtarefas repetidas com o mesmo título.' }); return; }
+						seen.add(key);
+					}
+				}
 				for (const s of subtasks) {
-					if (s._temp) await api.post(`/api/tasks/${saved.id}/subtasks`, { title: s.title });
+					if (s._temp) await api.post(`/api/tasks/${saved.id}/subtasks`, { title: s.title, done: !!s.done });
 				}
 					Modal.close();
 					document.dispatchEvent(new CustomEvent('refreshBoard'));

@@ -147,7 +147,7 @@ function getContrastTextColor(bgColor) {
 		const [R, G, B] = [r, g, b].map(c => (c <= 0.03928 ? c/12.92 : Math.pow(((c + 0.055)/1.055), 2.4)));
 		const L = 0.2126 * R + 0.7152 * G + 0.0722 * B;
 		// Limite de luminância ainda mais baixo para favorecer branco
-		return L > 0.4 ? '#000000' : '#FFFFFF';
+		return L > 0.5 ? '#383838ff' : '#FFFFFF';
 	}
 	return '#FFFFFF';
 }

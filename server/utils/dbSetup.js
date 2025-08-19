@@ -30,10 +30,14 @@ async function main() {
 	const client = new Client({ host: DB_HOST, user: DB_USER, password: DB_PASSWORD, port: DB_PORT, database: DB_NAME, ssl: DB_SSL });
 	await client.connect();
 
-	const schemaPath = path.join(__dirname, '..', '..', 'database', 'schema.postgres.sql');
-	const altSchemaPath = path.join(__dirname, '..', '..', '..', 'database', 'schema.postgres.sql');
-	const filePath = fs.existsSync(schemaPath) ? schemaPath : altSchemaPath;
-	const sql = fs.readFileSync(filePath, 'utf8');
+	const RESET = /^true$/i.test(process.env.DB_RESET || 'false');
+	const baseA = path.join(__dirname, '..', '..', 'database');
+	const baseB = path.join(__dirname, '..', '..', '..', 'database');
+	const filename = RESET ? 'schema.postgres.sql' : 'migrations.postgres.sql';
+	const fullA = path.join(baseA, filename);
+	const fullB = path.join(baseB, filename);
+	const chosen = fs.existsSync(fullA) ? fullA : fullB;
+	const sql = fs.readFileSync(chosen, 'utf8');
 	await client.query(sql);
 
 	// Seed: cria usuário admin padrão se não existir
