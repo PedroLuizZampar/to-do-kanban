@@ -11,10 +11,13 @@ const tagRoutes = require('./routes/tagRoutes');
 const taskRoutes = require('./routes/taskRoutes');
 const boardRoutes = require('./routes/boardRoutes');
 const subtaskRoutes = require('./routes/subtaskRoutes');
+const attachmentRoutes = require('./routes/attachmentRoutes');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const { auth } = require('./middleware/auth');
+const profileController = require('./controllers/profileController');
+const attachmentController = require('./controllers/attachmentController');
 
 const app = express();
 
@@ -32,12 +35,17 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/profile', profileRoutes);
+// Rota pública para servir avatar por ID (usada em cards/listas)
+app.get('/api/users/:id/avatar', profileController.getAvatarByUserId);
+// Rota pública para visualizar/download de anexos de tarefas (para <img src=...>)
+app.get('/api/attachments/:attachmentId', attachmentController.download);
 
 // API routes protegidas (exigem autenticação)
 app.use('/api/categories', auth, categoryRoutes);
 app.use('/api/tags', auth, tagRoutes);
 app.use('/api/tasks', auth, taskRoutes);
 app.use('/api/tasks/:taskId/subtasks', auth, subtaskRoutes);
+app.use('/api/tasks/:taskId/attachments', auth, attachmentRoutes);
 app.use('/api/subtasks', auth, subtaskRoutes);
 app.use('/api/boards', auth, boardRoutes);
 

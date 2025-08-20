@@ -68,6 +68,23 @@ async function setAvatar(id, avatarUrl) {
   return get(id);
 }
 
+// Salva avatar como blob no banco e atualiza URL para endpoint
+async function setAvatarBlob(id, buffer, mime, endpointUrl) {
+  const url = endpointUrl || `/api/users/${id}/avatar`;
+  await db.query('UPDATE users SET avatar_blob = ?, avatar_mime = ?, avatar_url = ? WHERE id = ?', [buffer, mime, url, id]);
+  return get(id);
+}
+
+async function clearAvatar(id) {
+  await db.query('UPDATE users SET avatar_blob = NULL, avatar_mime = NULL, avatar_url = NULL WHERE id = ?', [id]);
+  return get(id);
+}
+
+async function getAvatarBlob(id) {
+  const rows = await db.query('SELECT avatar_blob, avatar_mime FROM users WHERE id = ?', [id]);
+  return rows[0] || null;
+}
+
 // Admin: redefinir senha para 'mudar123'
 async function adminResetPassword(targetUserId) {
   const hashed = await bcrypt.hash('mudar123', 12);
@@ -90,6 +107,9 @@ module.exports = {
   verifyPassword,
   updateProfile,
   setAvatar,
+  setAvatarBlob,
+  clearAvatar,
+  getAvatarBlob,
   adminResetPassword,
   adminRemoveUser
 };

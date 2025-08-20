@@ -3,23 +3,44 @@ const Modal = (() => {
 	const modal = document.getElementById('modal');
 	const stack = [];
 
+	function applyWideFlagFrom(node) {
+		let wide = false;
+		if (node && node.dataset && (node.dataset.modalWide === 'true' || node.dataset.wide === 'true')) wide = true;
+		// Se for um wrapper existente
+		if (!wide && node && node.classList && node.classList.contains('modal-content')) {
+			if (node.dataset && (node.dataset.modalWide === 'true' || node.dataset.wide === 'true')) wide = true;
+		}
+		modal.classList.toggle('modal-wide', !!wide);
+	}
+
 	function render(content) {
 		modal.innerHTML = '';
 		if (content) {
-			const wrap = document.createElement('div');
-			wrap.className = 'modal-content';
-			wrap.append(content);
-			modal.append(wrap);
+			// Se o conteúdo já é um wrapper de modal, reutiliza
+			if (content.classList && content.classList.contains('modal-content')) {
+				modal.append(content);
+				applyWideFlagFrom(content);
+			} else {
+				const wrap = document.createElement('div');
+				wrap.className = 'modal-content';
+				// propaga flag de largura se definida no conteúdo
+				if (content.dataset && content.dataset.modalWide) wrap.dataset.modalWide = content.dataset.modalWide;
+				wrap.append(content);
+				modal.append(wrap);
+				applyWideFlagFrom(wrap);
+			}
 		}
 	}
 
 	function open(content, opts = {}) {
-		const { replace = false } = opts;
+		const { replace = false, wide = false } = opts;
 		const isVisible = !modal.classList.contains('hidden');
 		if (isVisible && !replace) {
 			const current = modal.firstElementChild;
 			if (current) stack.push(current);
 		}
+		// marca flag wide no conteúdo para que render() saiba aplicar
+		try { if (wide) content.dataset.modalWide = 'true'; } catch {}
 		render(content);
 		backdrop.classList.remove('hidden');
 		modal.classList.remove('hidden');
@@ -36,6 +57,7 @@ const Modal = (() => {
 		}
 		backdrop.classList.add('hidden');
 		modal.classList.add('hidden');
+		modal.classList.remove('modal-wide');
 		// dispara cleanup para que modais removam listeners globais
 		try {
 			const current = modal.firstElementChild;
@@ -81,7 +103,8 @@ const Modal = (() => {
 				el('p', {}, message),
 				el('footer', {}, [cancel, ok])
 			]);
-			Modal.open(content, { replace: true });
+			// Abre empilhado para não fechar o modal atual (ex.: modal do cartão)
+			Modal.open(content, { replace: false });
 		});
 	}
 
@@ -106,10 +129,24 @@ function colorPickerRow(labelText, initialColor) {
 	swatch.style.background = input.value;
 	input.addEventListener('input', () => { swatch.style.background = input.value; });
 
-	const palette = ['#fd5d5d','#6bb96a','#8f8f8f','#3b82f6','#f59e0b','#10b981','#8b5cf6','#ef4444','#14b8a6'];
+	// Paleta reduzida e mais distinta
+	const palette = [
+		'#ef4444', // red
+		'#f97316', // orange
+		'#f59e0b', // amber
+		'#fff130', // yellow
+		'#22c55e', // green
+		'#14b8a6', // teal
+		'#0ea5e9', // sky
+		'#3b82f6', // blue
+		'#ff80ff', // pink
+		'#8b5cf6', // violet
+		'#64748b',  // slate (neutro)
+		'#333333'  // dark gray
+	];
 	const quick = el('div', { class: 'color-quick' });
 	palette.forEach(c => {
-		const b = el('button', { class: 'color-dot', style: `--c:${c}` });
+		const b = el('button', { class: 'color-dot', style: `--c:${c}`, title: c });
 		b.addEventListener('click', (e) => { e.preventDefault(); input.value = c; input.dispatchEvent(new Event('input')); });
 		quick.append(b);
 	});
@@ -232,6 +269,8 @@ async function taskForm(initial = {}) {
 		});
 		// line breaks
 		s = s.replace(/\n/g, '<br>');
+		// remove <br> imediatamente após headings (h1..h6)
+		s = s.replace(/<\/h([1-6])><br>/g, '</h$1>');
 		return s;
 	}
 	function createMdToolbar(textarea, preview) {
@@ -384,6 +423,142 @@ async function taskForm(initial = {}) {
 	}
 	renderChecklist();
 
+	// Anexos (imagens)
+	const attachments = Array.isArray(initial.attachments) ? [...initial.attachments] : [];
+	const pendingFiles = [];
+	const thumbsWrap = el('div', { class: 'attach-thumbs' });
+	function renderAttachments() {
+			thumbsWrap.innerHTML = '';
+			const haveReal = attachments.length > 0;
+			const havePending = pendingFiles.length > 0;
+			if (!haveReal && !havePending) {
+				thumbsWrap.append(el('div', { class: 'muted' }, 'Nenhuma imagem anexada.'));
+				return;
+			}
+			// anexos já enviados (com URLs públicas)
+				attachments.forEach(a => {
+					const item = el('div', { class: 'attach-thumb' });
+					const delBtn = el('button', { class: 'btn-ghost btn-delete', title: 'Excluir imagem' }, [el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'delete')]);
+					delBtn.addEventListener('click', async (e) => {
+						e.preventDefault(); e.stopPropagation();
+						const ok = await confirmModal({ title: 'Excluir imagem', message: `Remover "${a.filename || 'imagem'}"?`, confirmText: 'Excluir' });
+						if (!ok) return;
+						try {
+							await api.del(`/api/tasks/${initial.id}/attachments/${a.id}`);
+							const idx = attachments.findIndex(x => x.id === a.id);
+							if (idx >= 0) attachments.splice(idx, 1);
+							renderAttachments();
+						} catch (err) {
+							await alertModal({ title: 'Erro', message: 'Não foi possível excluir a imagem.' });
+						}
+					});
+					const img = el('img', { src: a.url, alt: a.filename || 'anexo' });
+			img.addEventListener('click', () => {
+						const viewer = el('div', { class: 'image-viewer', 'data-modal-wide': 'true' }, [
+					el('h3', {}, a.filename || 'Imagem'),
+					el('div', { class: 'image-viewer-body' }, [el('img', { src: a.url, alt: a.filename || 'imagem' })]),
+					el('footer', {}, [el('button', { onclick: Modal.close }, 'Fechar')])
+				]);
+						Modal.open(viewer, { wide: true });
+			});
+					item.append(img, delBtn);
+			thumbsWrap.append(item);
+		});
+			// previews locais de arquivos pendentes (nova tarefa ainda não salva)
+			if (havePending) {
+						pendingFiles.forEach((f, idx) => {
+					try {
+						const url = URL.createObjectURL(f);
+								const item = el('div', { class: 'attach-thumb pending' });
+						const badge = el('span', { class: 'pending-badge' }, 'pendente');
+								const delBtn = el('button', { class: 'btn-ghost btn-delete', title: 'Remover imagem' }, [el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'delete')]);
+								delBtn.addEventListener('click', async (e) => {
+									e.preventDefault(); e.stopPropagation();
+									const ok = await confirmModal({ title: 'Remover imagem', message: `Remover imagem pendente "${f.name || 'imagem'}"?`, confirmText: 'Excluir' });
+									if (!ok) return;
+									const i = pendingFiles.indexOf(f);
+									if (i >= 0) pendingFiles.splice(i, 1);
+									try { URL.revokeObjectURL(url); } catch {}
+									renderAttachments();
+								});
+						const img = el('img', { src: url, alt: f.name || 'pendente' });
+						img.addEventListener('load', () => { try { URL.revokeObjectURL(url); } catch {} });
+						img.addEventListener('click', () => {
+									const viewer = el('div', { class: 'image-viewer', 'data-modal-wide': 'true' }, [
+								el('h3', {}, f.name || 'Imagem'),
+								el('div', { class: 'image-viewer-body' }, [el('img', { src: url, alt: f.name || 'imagem' })]),
+								el('footer', {}, [el('button', { onclick: Modal.close }, 'Fechar')])
+							]);
+									Modal.open(viewer, { wide: true });
+						});
+								item.append(img, badge, delBtn);
+						thumbsWrap.append(item);
+					} catch {}
+				});
+			}
+	}
+	function isImage(file) { return file && file.type && file.type.startsWith('image/'); }
+	async function uploadFileToTask(taskId, file) {
+		const fd = new FormData();
+		fd.append('file', file);
+		const r = await fetch(`/api/tasks/${taskId}/attachments`, { method: 'POST', headers: { 'Authorization': 'Bearer ' + (window.$auth?.getToken() || localStorage.getItem('token') || '') }, body: fd });
+		if (!r.ok) { try { const j = await r.json(); throw new Error(j.error || 'Falha no upload'); } catch (e) { throw new Error(e.message || 'Falha no upload'); } }
+		return r.json();
+	}
+
+	const fileInput = el('input', { type: 'file', accept: 'image/*', class: 'file-input' });
+	fileInput.addEventListener('change', async () => {
+		const files = Array.from(fileInput.files || []);
+		if (!files.length) return;
+		const images = files.filter(isImage);
+		if (images.length !== files.length) await alertModal({ title: 'Arquivos ignorados', message: 'Apenas imagens são permitidas.' });
+		if (initial.id) {
+			for (const f of images) {
+				try { const created = await uploadFileToTask(initial.id, f); attachments.push(created); } catch (e) { await alertModal({ title: 'Erro ao enviar', message: e.message || 'Falha ao enviar' }); }
+			}
+			renderAttachments();
+		} else {
+				pendingFiles.push(...images);
+				renderAttachments();
+		}
+		fileInput.value = '';
+	});
+
+	const dropzone = el('div', { class: 'dropzone' }, [
+		el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'cloud_upload'),
+		el('span', {}, 'Arraste e solte imagens aqui ou '),
+		el('label', { class: 'file-label', for: 'attach-input' }, [el('span', { class: 'material-symbols-outlined' }, 'photo_camera'), ' Escolher imagens'])
+	]);
+	fileInput.id = 'attach-input';
+	dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+	dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+	dropzone.addEventListener('drop', async (e) => {
+		e.preventDefault(); dropzone.classList.remove('drag-over');
+		const files = Array.from(e.dataTransfer.files || []);
+		const images = files.filter(isImage);
+		if (!images.length) { await alertModal({ title: 'Atenção', message: 'Solte apenas arquivos de imagem.' }); return; }
+		if (initial.id) {
+			for (const f of images) {
+				try { const created = await uploadFileToTask(initial.id, f); attachments.push(created); } catch (e) { await alertModal({ title: 'Erro ao enviar', message: e.message || 'Falha ao enviar' }); }
+			}
+			renderAttachments();
+		} else {
+				pendingFiles.push(...images);
+				renderAttachments();
+		}
+	});
+
+	function attachmentsSection() {
+		const wrap = el('div', { class: 'attachments-section' }, [
+			el('h5', {}, 'Uploads'),
+			el('div', { class: 'file-upload' }, [fileInput, dropzone]),
+			thumbsWrap
+		]);
+		return wrap;
+	}
+
+	renderAttachments();
+
 	// Dropdown custom para coluna (categoria)
 	let chosenCatId = initial.category_id ? Number(initial.category_id) : (cats[0]?.id || null);
 	const catDropdown = (() => {
@@ -458,7 +633,8 @@ async function taskForm(initial = {}) {
 	const content = el('div', {}, [
 		el('h3', {}, initial.id ? 'Editar tarefa' : 'Nova tarefa'),
 		el('div', { class: 'row' }, [el('h5', {}, 'Título'), title]),
-	el('div', { class: 'row' }, [el('h5', {}, 'Descrição'), descEditor.root]),
+		el('div', { class: 'row' }, [el('h5', {}, 'Descrição'), descEditor.root]),
+		el('div', { class: 'row' }, [attachmentsSection()]),
 		el('div', { class: 'row' }, [el('h5', {}, 'Coluna'), cats.length ? catDropdown : el('div', { class: 'muted' }, 'Nenhuma coluna disponível')]),
 		el('div', { class: 'row' }, [
 			el('h5', {}, 'Checklist'),
@@ -510,6 +686,12 @@ async function taskForm(initial = {}) {
 				for (const s of subtasks) {
 					if (s._temp) await api.post(`/api/tasks/${saved.id}/subtasks`, { title: s.title, done: !!s.done });
 				}
+					// Upload de anexos pendentes (quando criar nova tarefa)
+					if (!initial.id && pendingFiles.length) {
+						for (const f of pendingFiles) {
+							try { await uploadFileToTask(saved.id, f); } catch {}
+						}
+					}
 					Modal.close();
 					document.dispatchEvent(new CustomEvent('refreshBoard'));
 				} catch (e) {

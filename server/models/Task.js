@@ -26,6 +26,9 @@ async function list(boardId) {
 			 FROM task_assignees ta JOIN users u ON u.id = ta.user_id WHERE ta.task_id = ? ORDER BY u.username ASC`,
 			[t.id]
 		);
+		// attachments (somente metadados e URL)
+		const atts = await db.query('SELECT id, filename, mime, size_bytes, created_at FROM task_attachments WHERE task_id = ? ORDER BY id ASC', [t.id]);
+		t.attachments = atts.map(a => ({ ...a, url: `/api/attachments/${a.id}` }));
 	}
 	return tasks;
 }
@@ -57,6 +60,9 @@ async function get(id) {
 		 FROM task_assignees ta JOIN users u ON u.id = ta.user_id WHERE ta.task_id = ? ORDER BY u.username ASC`,
 		[id]
 	);
+	// attachments
+		const atts = await db.query('SELECT id, filename, mime, size_bytes, created_at FROM task_attachments WHERE task_id = ? ORDER BY id ASC', [id]);
+		task.attachments = atts.map(a => ({ ...a, url: `/api/attachments/${a.id}` }));
 	return task;
 }
 

@@ -83,7 +83,7 @@
         document.getElementById('p-username').value = user.username || '';
         document.getElementById('p-email').value = user.email || '';
         const avatarPreview = document.getElementById('avatar-preview');
-        window.updateAvatarDisplay(avatarPreview, user.avatar_url);
+  window.updateAvatarDisplay(avatarPreview, user.avatar_url);
       }
 
       async function load() {
@@ -104,7 +104,7 @@
       }
 
       // Função para criar/atualizar elemento de avatar com imagem interna
-      window.updateAvatarDisplay = function(element, avatarUrl) {
+  window.updateAvatarDisplay = function(element, avatarUrl) {
         element.innerHTML = '';
         if (avatarUrl) {
           const imgEl = document.createElement('img');
@@ -139,7 +139,7 @@
             const url = URL.createObjectURL(f);
             window.updateAvatarDisplay(avatarPreview, url);
           } else {
-            // Se não houver arquivo, mostra as iniciais novamente
+            // Se não houver arquivo, restaura avatar atual
             const user = window.$auth.getUser() || {};
             window.updateAvatarDisplay(avatarPreview, user.avatar_url);
           }

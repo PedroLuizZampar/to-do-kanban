@@ -1,3 +1,12 @@
+## Armazenamento de Avatares (PostgreSQL)
+
+Os avatares de usuário agora são armazenados no banco (colunas `users.avatar_blob` e `users.avatar_mime`).
+
+- Upload: `POST /api/profile/avatar` (autenticado). O arquivo é enviado como `multipart/form-data` com o campo `avatar`.
+- Remoção: `DELETE /api/profile/avatar`.
+- Exibição: `GET /api/users/:id/avatar` (pública). O cliente usa `user.avatar_url` que aponta para esse endpoint.
+
+As migrações idempotentes adicionam as novas colunas automaticamente sem perder dados existentes.
 # Kanban de Tarefas (Node.js + PostgreSQL + HTML/CSS/JS)
 
 Aplicação Kanban com backend em Node.js/Express e banco PostgreSQL, e frontend leve em HTML/CSS/JS (sem framework). Suporta:

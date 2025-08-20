@@ -1,8 +1,6 @@
 'use strict';
 
 const User = require('../models/User');
-const fs = require('fs');
-const path = require('path');
 
 module.exports = {
   async updateProfile(req, res, next) {
@@ -31,28 +29,12 @@ module.exports = {
     try {
       if (!req.file) return res.status(400).json({ error: 'Arquivo não enviado' });
       const userId = req.userId;
-      const newRelPath = '/uploads/' + req.file.filename;
+      const buffer = req.file.buffer;
+      const mime = req.file.mimetype || 'application/octet-stream';
 
-      // Guarda caminho antigo para limpar após atualizar no banco
-      const currentUser = await User.get(userId);
-      const oldRel = currentUser?.avatar_url;
-
-      let updated;
-      try {
-        updated = await User.setAvatar(userId, newRelPath);
-      } catch (e) {
-        // Falhou atualizar no banco: remove arquivo novo para evitar lixo
-        const newAbs = path.join(__dirname, '..', '..', newRelPath.replace(/^\//, ''));
-        try { if (fs.existsSync(newAbs)) fs.unlinkSync(newAbs); } catch {}
-        throw e;
-      }
-
-      // Se havia avatar antigo, apaga arquivo físico
-      if (oldRel && oldRel !== newRelPath) {
-        const oldAbs = path.join(__dirname, '..', '..', oldRel.replace(/^\//, ''));
-        try { if (fs.existsSync(oldAbs)) fs.unlinkSync(oldAbs); } catch {}
-      }
-
+  // Salva blob e mimetype; avatar_url passa a apontar para endpoint público por usuário
+  const endpointUrl = `/api/users/${userId}/avatar`;
+  const updated = await User.setAvatarBlob(userId, buffer, mime, endpointUrl);
       res.json({ avatar_url: updated.avatar_url });
     } catch (e) { next(e); }
   },
@@ -60,21 +42,36 @@ module.exports = {
   async deleteAvatar(req, res, next) {
     try {
       const userId = req.userId;
-      const user = await User.get(userId);
-      const current = user?.avatar_url;
-
-      // Apaga arquivo físico se existir e for caminho interno de uploads
-      if (current && typeof current === 'string') {
-        const rel = current.replace(/^\//, ''); // remove leading '/'
-        const abs = path.join(__dirname, '..', '..', rel);
-        try {
-          if (fs.existsSync(abs)) fs.unlinkSync(abs);
-        } catch (_) { /* ignora falhas ao deletar arquivo */ }
-      }
-
-      // Limpa no banco
-      await User.setAvatar(userId, null);
+      await User.clearAvatar(userId);
       res.json({ avatar_url: null });
+    } catch (e) { next(e); }
+  },
+
+  async getOwnAvatar(req, res, next) {
+    try {
+      const userId = req.userId;
+  const data = await User.getAvatarBlob(userId);
+  if (!data || !data.avatar_blob) return res.status(404).end();
+  const buf = Buffer.isBuffer(data.avatar_blob) ? data.avatar_blob : Buffer.from(data.avatar_blob);
+  res.setHeader('Content-Type', data.avatar_mime || 'application/octet-stream');
+  res.setHeader('Content-Length', buf.length);
+      // cache curto para evitar piscar, invalidado quando cliente atualiza o perfil
+      res.setHeader('Cache-Control', 'private, max-age=60');
+  return res.end(buf);
+    } catch (e) { next(e); }
+  },
+
+  async getAvatarByUserId(req, res, next) {
+    try {
+      const userId = Number(req.params.id);
+      if (!Number.isInteger(userId)) return res.status(400).json({ error: 'id inválido' });
+  const data = await User.getAvatarBlob(userId);
+  if (!data || !data.avatar_blob) return res.status(404).end();
+  const buf = Buffer.isBuffer(data.avatar_blob) ? data.avatar_blob : Buffer.from(data.avatar_blob);
+  res.setHeader('Content-Type', data.avatar_mime || 'application/octet-stream');
+  res.setHeader('Content-Length', buf.length);
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  return res.end(buf);
     } catch (e) { next(e); }
   },
 

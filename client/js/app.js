@@ -115,10 +115,10 @@ document.addEventListener('DOMContentLoaded', () => {
 				list.append(el('p', { class: 'muted' }, 'Nenhum usuário disponível para convidar.'));
 				return;
 			}
-			users.forEach(u => {
+				users.forEach(u => {
 				const row = el('div', { class: 'tag-row' });
 				const left = el('div', { class: 'tag-left' }, [
-					u.avatar_url ? (function(){ const i = el('img', { src: u.avatar_url, alt: u.username, style: 'width:24px;height:24px;border-radius:999px;object-fit:cover;border:1px solid var(--border);' }); return i; })() : el('span', { class: 'tag', style: 'background:#e5e7eb;color:#111' }, u.username.charAt(0).toUpperCase()),
+						u.avatar_url ? (function(){ const i = el('img', { src: u.avatar_url, alt: u.username, style: 'width:24px;height:24px;border-radius:999px;object-fit:cover;border:1px solid var(--border);' }); return i; })() : el('span', { class: 'tag', style: 'background:#e5e7eb;color:#111' }, u.username.charAt(0).toUpperCase()),
 					el('strong', { style: 'margin-left:8px' }, u.username),
 					el('small', { class: 'muted', style: 'margin-left:6px' }, `(${u.email})`),
 				]);
