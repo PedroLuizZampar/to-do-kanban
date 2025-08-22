@@ -1,6 +1,90 @@
 document.addEventListener('DOMContentLoaded', () => {
 	const boardsList = document.getElementById('boards-list');
 	const btnNewBoard = document.getElementById('btn-new-board');
+	const sidebar = document.getElementById('sidebar');
+	const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+	const sidebarResizer = document.getElementById('sidebar-resizer');
+
+	// Sidebar: largura e colapso com persistência
+	(function initSidebarPrefs() {
+		const root = document.documentElement;
+		const storedW = localStorage.getItem('sidebar:w');
+		const storedCollapsed = localStorage.getItem('sidebar:collapsed') === '1';
+		if (storedW) root.style.setProperty('--sidebar-w', storedW);
+		if (storedCollapsed) {
+			sidebar.classList.add('collapsed');
+			const collapsedW = getComputedStyle(root).getPropertyValue('--sidebar-collapsed-w').trim() || '56px';
+			root.style.setProperty('--sidebar-w', collapsedW);
+		}
+		updateToggleIcon();
+	})();
+
+	function updateToggleIcon() {
+		const icon = btnToggleSidebar?.querySelector('.material-symbols-outlined');
+		if (!icon) return;
+		icon.textContent = sidebar.classList.contains('collapsed') ? 'chevron_right' : 'chevron_left';
+		btnToggleSidebar?.setAttribute('title', sidebar.classList.contains('collapsed') ? 'Expandir sidebar' : 'Recolher sidebar');
+		btnToggleSidebar?.setAttribute('aria-label', sidebar.classList.contains('collapsed') ? 'Expandir sidebar' : 'Recolher sidebar');
+	}
+
+	btnToggleSidebar?.addEventListener('click', () => {
+		const root = document.documentElement;
+		const collapsed = sidebar.classList.toggle('collapsed');
+		localStorage.setItem('sidebar:collapsed', collapsed ? '1' : '0');
+		if (collapsed) {
+			// guardar última largura expandida
+			const current = getComputedStyle(root).getPropertyValue('--sidebar-w').trim();
+			if (current) localStorage.setItem('sidebar:lastW', current);
+			root.style.setProperty('--sidebar-w', getComputedStyle(root).getPropertyValue('--sidebar-collapsed-w').trim() || '56px');
+		} else {
+			const last = localStorage.getItem('sidebar:lastW') || localStorage.getItem('sidebar:w') || '260px';
+			root.style.setProperty('--sidebar-w', last);
+		}
+		updateToggleIcon();
+	});
+
+	// Redimensionamento com limites
+	(function setupResizer() {
+		if (!sidebarResizer) return;
+		const root = document.documentElement;
+		const min = 180; // px
+		const max = 420; // px
+		let startX = 0; let startW = 0; let active = false;
+		function onDown(e) {
+			if (sidebar.classList.contains('collapsed')) return;
+			active = true;
+			startX = e.clientX || (e.touches?.[0]?.clientX ?? 0);
+			// computar largura atual da coluna via getComputedStyle
+			const current = parseInt(getComputedStyle(document.querySelector('.app')).gridTemplateColumns.split(' ')[0], 10);
+			startW = isNaN(current) ? sidebar.offsetWidth : current;
+			document.body.style.userSelect = 'none';
+			document.addEventListener('mousemove', onMove);
+			document.addEventListener('mouseup', onUp);
+			document.addEventListener('touchmove', onMove, { passive: false });
+			document.addEventListener('touchend', onUp);
+		}
+		function onMove(e) {
+			if (!active) return;
+			e.preventDefault?.();
+			const x = e.clientX || (e.touches?.[0]?.clientX ?? 0);
+			let w = startW + (x - startX);
+			w = Math.max(min, Math.min(max, w));
+			root.style.setProperty('--sidebar-w', `${w}px`);
+		}
+		function onUp() {
+			if (!active) return;
+			active = false;
+			document.body.style.userSelect = '';
+			const w = getComputedStyle(root).getPropertyValue('--sidebar-w')?.trim();
+			if (w) localStorage.setItem('sidebar:w', w);
+			document.removeEventListener('mousemove', onMove);
+			document.removeEventListener('mouseup', onUp);
+			document.removeEventListener('touchmove', onMove);
+			document.removeEventListener('touchend', onUp);
+		}
+		sidebarResizer.addEventListener('mousedown', onDown);
+		sidebarResizer.addEventListener('touchstart', onDown, { passive: true });
+	})();
 
 	async function renderBoards() {
 		const boards = await api.get('/api/boards');
@@ -14,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
 			item.setAttribute('draggable', 'true');
 			if (b.color) item.style.setProperty('--board-color', b.color);
 			item.innerHTML = `
-				<div class="title" style="${b.color ? `color:${b.color}` : ''}"><span class="material-symbols-outlined" aria-hidden="true">space_dashboard</span>${b.name}</div>
+				<div class="title" style="${b.color ? `color:${b.color}` : ''}"><span class="material-symbols-outlined" aria-hidden="true">space_dashboard</span><span class="board-name">${b.name}</span></div>
 				<div class="board-actions">
 					<button class="btn-ghost btn-edit" title="Renomear"><span class="material-symbols-outlined">edit</span></button>
 					<button class="btn-ghost btn-delete" title="Excluir"><span class="material-symbols-outlined">delete</span></button>

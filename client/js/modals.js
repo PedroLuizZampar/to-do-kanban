@@ -336,13 +336,20 @@ async function taskForm(initial = {}) {
 		// Render inicial e estado não editando
 		render();
 		setEditing(false);
-		// Entrar em edição ao clicar no preview (exceto se clicar em link)
+		// Permitir seleção/cópia no preview sem alternar modo ao clicar
+		preview.setAttribute('tabindex', '0');
+		preview.addEventListener('mousedown', (e) => {
+			// Não alterar modo ao clicar/selecionar
+			e.stopPropagation();
+		});
+		// Ao clicar no preview quando não estiver editando, entrar em edição
 		preview.addEventListener('click', (e) => {
 			const a = e.target && e.target.closest ? e.target.closest('a') : null;
-			if (a) return; // deixa o link abrir
-			setEditing(true);
-			// foca a textarea após o frame para não interferir na navegação do clique
-			setTimeout(() => ta.focus(), 0);
+			if (a) return; // permite abrir links normalmente
+			if (!root.classList.contains('editing')) {
+				setEditing(true);
+				setTimeout(() => ta.focus(), 0);
+			}
 		});
 		// Manter preview atualizado
 		ta.addEventListener('input', render);

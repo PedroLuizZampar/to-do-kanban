@@ -126,7 +126,11 @@ function el(tag, attrs = {}, children = []) {
 
 function pill(text, color) {
 	const p = el('span', { class: 'tag' }, text);
-	if (color) p.style.background = color;
+	if (color) {
+		p.style.background = color;
+		const txt = getContrastTextColor(String(color).trim());
+		p.style.color = txt;
+	}
 	return p;
 }
 

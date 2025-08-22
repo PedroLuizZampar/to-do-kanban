@@ -269,7 +269,7 @@ BEGIN
   END IF;
 
   INSERT INTO boards (name, description, color, position, user_id)
-  VALUES ('Meu Quadro', NULL, NULL, 1, NEW.id)
+  VALUES ('Meu Quadro', 'Quadro para gestão de tarefas pessoais', '#3B82F6', 1, NEW.id)
   RETURNING id INTO new_board_id;
 
   INSERT INTO categories (name, description, color, board_id, position)

@@ -64,8 +64,13 @@
 		<div class="app">
 			<aside id="sidebar" class="sidebar">
 				<header class="sidebar-header">
-					<span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
-					<span>Quadros</span>
+					<div class="sidebar-head-left">
+						<span class="material-symbols-outlined" aria-hidden="true">dashboard</span>
+						<span>Quadros</span>
+					</div>
+					<button id="btn-toggle-sidebar" class="btn-ghost btn-icon" title="Recolher sidebar" aria-label="Recolher sidebar">
+						<span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+					</button>
 				</header>
 				<nav id="boards-list" class="boards-list" aria-label="Quadros"></nav>
 				<footer class="sidebar-footer">
@@ -74,6 +79,7 @@
 						<span>Novo quadro</span>
 					</button>
 				</footer>
+				<div id="sidebar-resizer" class="sidebar-resizer" aria-hidden="true"></div>
 			</aside>
 			<main id="board" class="board" aria-live="polite"></main>
 		</div>
