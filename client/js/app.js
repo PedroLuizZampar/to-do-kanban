@@ -108,6 +108,8 @@ document.addEventListener('DOMContentLoaded', () => {
 				window.$utils.setBoardId(b.id);
 				renderBoards();
 				$board.load();
+				// Atualiza miniaturas de membros ao trocar de quadro
+				loadBoardMembersMini();
 			});
 			item.querySelector('.btn-edit').addEventListener('click', (e) => { e.stopPropagation(); Modal.open($modals.boardForm ? $modals.boardForm(b) : (function(){})()); });
 			item.querySelector('.btn-delete').addEventListener('click', async (e) => {
@@ -118,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				if (window.$utils.getBoardId() === b.id) window.$utils.setBoardId(null);
 				await renderBoards();
 				$board.load();
+				await loadBoardMembersMini();
 				$modals.toast.show('Quadro excluído');
 			});
 
@@ -149,6 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (!after) boardsList.append(dragging);
 			else boardsList.insertBefore(dragging, after);
 		});
+
+		// Atualiza miniaturas após re-render de boards
+		loadBoardMembersMini();
 	}
 
 	function getBoardAfter(mouseY) {
@@ -227,6 +233,70 @@ document.addEventListener('DOMContentLoaded', () => {
 		Modal.open(root);
 	});
 
+	// Miniaturas dos participantes na topbar
+	const membersMini = document.getElementById('board-members-mini');
+	let membersMiniReq = 0; // token para evitar race conditions
+	async function loadBoardMembersMini() {
+		if (!membersMini) return;
+		membersMini.innerHTML = '';
+		const boardId = window.$utils.getBoardId();
+		if (!boardId) return;
+		const reqId = ++membersMiniReq;
+		let members = [];
+		try { members = await api.get(`/api/boards/${boardId}/invite/users?mode=members`); } catch {}
+		// se outra chamada mais recente foi iniciada, descarta este resultado
+		if (reqId !== membersMiniReq) return;
+		if (!members.length) return;
+		const currentUser = window.$auth?.getUser?.() || null;
+		const membersNoSelf = currentUser ? members.filter(m => m.id !== currentUser.id) : members;
+		if (!membersNoSelf.length) return;
+		const openMembersModal = () => {
+			const root = el('div');
+			root.append(el('h3', {}, 'Participantes do quadro'));
+			const list = el('div', { class: 'tag-list' });
+			members.forEach(u => {
+				const row = el('div', { class: 'tag-row' });
+				const left = el('div', { class: 'tag-left' }, [
+					u.avatar_url ? (function(){ const i = el('img', { src: u.avatar_url, alt: u.username, style: 'width:28px;height:28px;border-radius:999px;object-fit:cover;border:1px solid var(--border);' }); return i; })() : el('span', { class: 'tag', style: 'background:#e5e7eb;color:#111' }, (u.username||'?').charAt(0).toUpperCase()),
+					el('strong', { style: 'margin-left:8px; display:flex; align-items:center; gap:6px' }, [
+						u.username,
+						(u.role === 'owner' ? el('span', { class: 'material-symbols-outlined', style: 'font-size:16px;color:#f59e0b', title: 'Criador do quadro' }, 'workspace_premium') : ''),
+					]),
+					el('small', { class: 'muted', style: 'margin-left:6px' }, `(${u.email})`),
+				]);
+				row.append(left);
+				list.append(row);
+			});
+			root.append(list);
+			root.append(el('footer', {}, [el('button', { class: 'btn-ghost', onclick: Modal.close }, 'Fechar')]));
+			Modal.open(root);
+		};
+		membersNoSelf.slice(0,3).forEach(u => {
+			const a = document.createElement('div');
+			a.className = 'avatar-mini';
+			a.setAttribute('title', `${u.username} (${u.email})`);
+			a.addEventListener('click', openMembersModal);
+			if (u.avatar_url) {
+				const img = document.createElement('img');
+				img.src = u.avatar_url; img.alt = u.username; a.append(img);
+			} else {
+				a.textContent = (u.username||'?').charAt(0).toUpperCase();
+			}
+			membersMini.append(a);
+		});
+		if (membersNoSelf.length > 3) {
+			const more = document.createElement('div');
+			more.className = 'avatar-mini more';
+			more.textContent = `+${membersNoSelf.length - 3}`;
+			more.setAttribute('role', 'button');
+			more.setAttribute('tabindex', '0');
+			more.setAttribute('aria-label', `Ver mais ${membersNoSelf.length - 3} participantes`);
+			more.addEventListener('click', openMembersModal);
+			more.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMembersModal(); } });
+			membersMini.append(more);
+		}
+	}
+
 	// Inbox de convites
 	const btnInbox = document.getElementById('btn-inbox');
 	const badge = document.getElementById('inbox-badge');
@@ -278,5 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	if (k === 's') { e.preventDefault(); if (!ensureBoard()) return; btnShare?.click(); }
 	});
 	document.addEventListener('refreshBoard', () => { renderBoards(); $board.load(); });
-	(async () => { await renderBoards(); $board.load(); })();
+	(async () => { await renderBoards(); $board.load(); await loadBoardMembersMini(); })();
+	// Recarrega miniaturas ao trocar de quadro
+	document.addEventListener('refreshBoard', () => { loadBoardMembersMini(); });
 });
