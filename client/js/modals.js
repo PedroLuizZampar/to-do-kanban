@@ -1,3 +1,4 @@
+// Modal consistente
 const Modal = (() => {
 	const backdrop = document.getElementById('modal-backdrop');
 	const modal = document.getElementById('modal');
@@ -6,7 +7,6 @@ const Modal = (() => {
 	function applyWideFlagFrom(node) {
 		let wide = false;
 		if (node && node.dataset && (node.dataset.modalWide === 'true' || node.dataset.wide === 'true')) wide = true;
-		// Se for um wrapper existente
 		if (!wide && node && node.classList && node.classList.contains('modal-content')) {
 			if (node.dataset && (node.dataset.modalWide === 'true' || node.dataset.wide === 'true')) wide = true;
 		}
@@ -15,32 +15,30 @@ const Modal = (() => {
 
 	function render(content) {
 		modal.innerHTML = '';
-		if (content) {
-			// Se o conteúdo já é um wrapper de modal, reutiliza
-			if (content.classList && content.classList.contains('modal-content')) {
-				modal.append(content);
-				applyWideFlagFrom(content);
-			} else {
-				const wrap = document.createElement('div');
-				wrap.className = 'modal-content';
-				// propaga flag de largura se definida no conteúdo
-				if (content.dataset && content.dataset.modalWide) wrap.dataset.modalWide = content.dataset.modalWide;
-				wrap.append(content);
-				modal.append(wrap);
-				applyWideFlagFrom(wrap);
-			}
+		if (!content) return;
+		if (content.classList && content.classList.contains('modal-content')) {
+			modal.append(content);
+			applyWideFlagFrom(content);
+		} else {
+			const wrap = document.createElement('div');
+			wrap.className = 'modal-content';
+			if (content.dataset && content.dataset.modalWide) wrap.dataset.modalWide = content.dataset.modalWide;
+			wrap.append(content);
+			modal.append(wrap);
+			applyWideFlagFrom(wrap);
 		}
 	}
 
-	function open(content, opts = {}) {
-		const { replace = false, wide = false } = opts;
+	function open(content, opts) {
+		opts = opts || {};
+		const replace = !!opts.replace;
+		const wide = !!opts.wide;
 		const isVisible = !modal.classList.contains('hidden');
 		if (isVisible && !replace) {
 			const current = modal.firstElementChild;
 			if (current) stack.push(current);
 		}
-		// marca flag wide no conteúdo para que render() saiba aplicar
-		try { if (wide) content.dataset.modalWide = 'true'; } catch {}
+		try { if (wide) content.dataset.modalWide = 'true'; } catch (e) {}
 		render(content);
 		backdrop.classList.remove('hidden');
 		modal.classList.remove('hidden');
@@ -50,78 +48,27 @@ const Modal = (() => {
 		if (stack.length > 0) {
 			const prev = stack.pop();
 			render(prev);
-			// notifica que o modal anterior foi retomado (bubbling p/ filhos)
-			try { prev.dispatchEvent(new CustomEvent('modal:resumed', { bubbles: true })); } catch {}
-			// mantém backdrop visível
+			try { prev.dispatchEvent(new CustomEvent('modal:resumed', { bubbles: true })); } catch (e) {}
 			return;
 		}
 		backdrop.classList.add('hidden');
 		modal.classList.add('hidden');
 		modal.classList.remove('modal-wide');
-		// dispara cleanup para que modais removam listeners globais
 		try {
 			const current = modal.firstElementChild;
 			if (current) current.dispatchEvent(new CustomEvent('modal:cleanup', { bubbles: true }));
-		} catch {}
+		} catch (e) {}
 		modal.innerHTML = '';
 	}
 
-	backdrop.addEventListener('click', close);
-	// Fecha com ESC
+	if (backdrop) backdrop.addEventListener('click', close);
 	document.addEventListener('keydown', (e) => {
-		if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+		const mdl = document.getElementById('modal');
+		if (e.key === 'Escape' && mdl && !mdl.classList.contains('hidden')) close();
 	});
+
 	return { open, close };
 })();
-
-	// Toast simples
-	const Toast = (() => {
-		const el = document.getElementById('toast');
-		let t;
-		function show(message, opts = {}) {
-			clearTimeout(t);
-			el.textContent = message;
-			el.classList.remove('hidden');
-			el.classList.remove('toast-error');
-			if (opts.type === 'error') el.classList.add('toast-error');
-			t = setTimeout(hide, opts.duration || 2500);
-		}
-		function hide() { el.classList.add('hidden'); }
-		return { show, hide };
-	})();
-
-	// Confirm customizado (botão confirmar fica danger quando é exclusão; cancelar é neutro)
-	async function confirmModal({ title = 'Confirmar', message = 'Tem certeza?', confirmText = 'Confirmar', cancelText = 'Cancelar' } = {}) {
-		return new Promise((resolve) => {
-			const okIsDelete = /^\s*(excluir|redefinir)/i.test(confirmText);
-			const ok = el('button', { class: okIsDelete ? 'btn-danger' : '' }, confirmText);
-			const cancel = el('button', {}, cancelText);
-			ok.addEventListener('click', () => { Modal.close(); resolve(true); });
-			cancel.addEventListener('click', () => { Modal.close(); resolve(false); });
-			const content = el('div', {}, [
-				el('h3', {}, title),
-				el('p', {}, message),
-				el('footer', {}, [cancel, ok])
-			]);
-			// Abre empilhado para não fechar o modal atual (ex.: modal do cartão)
-			Modal.open(content, { replace: false });
-		});
-	}
-
-		// Alert customizado
-		async function alertModal({ title = 'Atenção', message = '', okText = 'OK' } = {}) {
-			return new Promise((resolve) => {
-				const ok = el('button', {}, okText);
-				ok.addEventListener('click', () => { Modal.close(); resolve(true); });
-				const content = el('div', {}, [
-					el('h3', {}, title),
-					el('p', {}, message),
-					el('footer', {}, [ok])
-				]);
-				// Abre empilhado para não fechar o modal atual (ex.: modal do cartão)
-				Modal.open(content, { replace: false });
-			});
-		}
 
 function colorPickerRow(labelText, initialColor) {
 	const input = el('input', { type: 'color', value: initialColor || '#3b82f6', class: 'color-input' });
@@ -328,15 +275,25 @@ async function taskForm(initial = {}) {
 		const preview = el('div', { class: 'markdown-preview' });
 		const toolbar = createMdToolbar(ta, preview);
 		const root = el('div', { class: 'md-editor' }, [toolbar, el('div', { class: 'md-panels' }, [el('div', { class: 'md-input' }, ta), preview])]);
+		function syncHeights() {
+			try {
+				// Define a altura da textarea igual à altura do preview
+				ta.style.height = 'auto';
+				const h = Math.max(preview.scrollHeight, 140);
+				ta.style.height = h + 'px';
+			} catch {}
+		}
 		const render = () => {
 			const val = ta.value || '';
 			if (!val.trim()) {
 				preview.classList.add('empty');
 				preview.textContent = placeholderText;
+				syncHeights();
 				return;
 			}
 			preview.classList.remove('empty');
 			preview.innerHTML = mdToHtml(val);
+			syncHeights();
 		};
 		const setEditing = (on) => { root.classList.toggle('editing', !!on); };
 		// Render inicial e estado não editando
@@ -359,6 +316,7 @@ async function taskForm(initial = {}) {
 		});
 		// Manter preview atualizado
 		ta.addEventListener('input', render);
+		window.addEventListener('resize', () => syncHeights());
 		// Alterna classe de edição baseado no foco dentro do editor
 		let blurTimer;
 		root.addEventListener('focusin', (e) => {
