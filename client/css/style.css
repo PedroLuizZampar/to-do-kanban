@@ -114,20 +114,20 @@ button.btn-ghost:hover { background: #f3f6fb; }
 
 /* Truncagem responsiva: já garantida por min-width:0 nos containers acima */
 
-.board { display: flex; align-items: flex-start; gap: 18px; padding: 18px 4px 18px 4px; overflow-x: auto; min-height: calc(100vh - 68px); scrollbar-gutter: stable both-edges; }
+.board { display: flex; align-items: flex-start; gap: 18px; padding: 18px 4px 18px 4px; overflow-x: auto; overflow-y: hidden; height: calc(100vh - 68px); scrollbar-gutter: stable both-edges; }
 /* Oculta barra horizontal nativa em navegadores suportados sem deslocar layout */
 .board { scrollbar-width: thin; }
 body { overscroll-behavior-x: none; }
 /* Força largura mínima das colunas para evitar compressão que gera scrollbar duplicada */
 .board .column { flex: 0 0 300px; }
-.column { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; min-width: 300px; display: flex; flex-direction: column; max-height: 90vh; box-shadow: var(--shadow); transition: box-shadow .2s ease, transform .15s ease; border-top: 4px solid var(--col, var(--accent)); }
+.column { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; min-width: 300px; display: flex; flex-direction: column; max-height: calc(100vh - 68px - 36px); overflow: hidden; box-shadow: var(--shadow); transition: box-shadow .2s ease, transform .15s ease; border-top: 4px solid var(--col, var(--accent)); }
 .column:hover { box-shadow: 0 12px 32px rgba(2, 6, 23, .12); }
 .column-header { display: flex; align-items: center; justify-content: space-between; padding: 12px; border-bottom: 1px solid var(--border); cursor: grab; }
 .column-head-left { display: flex; align-items: center; gap: 8px; }
 .drag-handle { color: #9aa3b2; }
 .column-title { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: .3px; }
 .column-actions { display: flex; gap: 6px; }
-.cards { padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 60px; max-height: 480px; }
+.cards { padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; min-height: 40px; max-height: calc(100% - 56px); /* 56px ~= header(44)+footer(12) */ }
 .cards.drag-over { outline: 2px dashed var(--accent); outline-offset: -6px; background: #f8fbff; animation: pulse .6s ease infinite alternate; }
 @keyframes pulse { from { background: #f8fbff; } to { background: #f0f7ff; } }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: grab; box-shadow: var(--shadow); transition: transform .12s ease, box-shadow .2s ease; }
