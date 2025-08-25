@@ -644,14 +644,22 @@ async function taskForm(initial = {}) {
 
 
 	// UI de tags com dois lados (disponíveis e adicionadas)
-	const selectedTags = new Set((initial.tags || []).map(t => t.id));
+	// Mantém duas estruturas: ordem (array) e membership (Set)
+	let selectedTagsOrder = Array.from(initial.tags || []).map(t => t.id);
+	let selectedTagsSet = new Set(selectedTagsOrder);
 	const availableWrap = el('div', { class: 'tag-bucket' });
 	const selectedWrap = el('div', { class: 'tag-bucket' });
 	function makeTagPill(t, selected) {
 		const p = pill(t.name, t.color);
 		p.classList.add('tag-toggle');
 		p.addEventListener('click', () => {
-			if (selectedTags.has(t.id)) selectedTags.delete(t.id); else selectedTags.add(t.id);
+			if (selectedTagsSet.has(t.id)) {
+				selectedTagsSet.delete(t.id);
+				selectedTagsOrder = selectedTagsOrder.filter(id => id !== t.id);
+			} else {
+				selectedTagsSet.add(t.id);
+				selectedTagsOrder.push(t.id);
+			}
 			renderBuckets();
 		});
 		return p;
@@ -659,10 +667,20 @@ async function taskForm(initial = {}) {
 	function renderBuckets() {
 		availableWrap.innerHTML = '';
 		selectedWrap.innerHTML = '';
-		tags.forEach(t => {
-			const isSel = selectedTags.has(t.id);
-			(isSel ? selectedWrap : availableWrap).append(makeTagPill(t, isSel));
-		});
+		// Mapa de tags por id para lookup rápido
+		const byId = new Map(tags.map(t => [t.id, t]));
+		// Limpa ids que não existem mais
+		selectedTagsOrder = selectedTagsOrder.filter(id => byId.has(id));
+		selectedTagsSet = new Set(selectedTagsOrder);
+		// Adicionadas: obedecem a ordem de adição no card
+		for (const id of selectedTagsOrder) {
+			const t = byId.get(id);
+			if (t) selectedWrap.append(makeTagPill(t, true));
+		}
+		// Disponíveis: qualquer ordem estável (criação)
+		const avail = tags.filter(t => !selectedTagsSet.has(t.id))
+			.sort((a,b) => new Date(a.created_at) - new Date(b.created_at) || a.id - b.id);
+		for (const t of avail) availableWrap.append(makeTagPill(t, false));
 	}
 	renderBuckets();
 
@@ -732,7 +750,7 @@ async function taskForm(initial = {}) {
 					let saved;
 					if (initial.id) saved = await api.put(`/api/tasks/${initial.id}`, payload);
 					else saved = await api.post('/api/tasks', payload);
-					const tagsArr = Array.from(selectedTags);
+					const tagsArr = selectedTagsOrder.slice();
 					await api.post(`/api/tasks/${saved.id}/tags`, { tags: tagsArr });
 				// salvar responsáveis
 				const assigneesArr = Array.from(selectedAssignees);

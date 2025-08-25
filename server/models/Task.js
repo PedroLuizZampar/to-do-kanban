@@ -12,7 +12,7 @@ async function list(boardId) {
 	}
 	for (const t of tasks) {
 		t.tags = await db.query(
-			'SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tg.name ASC',
+			' SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tt.position ASC, tt.tag_id ASC',
 			[t.id]
 		);
 		// subtarefas
@@ -37,7 +37,7 @@ async function listByCategory(categoryId) {
 	const tasks = await db.query('SELECT * FROM tasks WHERE category_id = ? ORDER BY position ASC, id ASC', [categoryId]);
 	for (const t of tasks) {
 		t.tags = await db.query(
-			'SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tg.name ASC',
+			'SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tt.position ASC, tt.tag_id ASC',
 			[t.id]
 		);
 	}
@@ -49,7 +49,7 @@ async function get(id) {
 	if (!rows[0]) return null;
 	const task = rows[0];
 	task.tags = await db.query(
-		'SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tg.name ASC',
+		'SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tt.position ASC, tt.tag_id ASC',
 		[id]
 	);
 	// subtarefas
@@ -135,8 +135,9 @@ async function reorder(categoryId, orderIds) {
 
 async function setTags(taskId, tagIds) {
 	await db.query('DELETE FROM task_tags WHERE task_id = ?', [taskId]);
+	let pos = 1;
 	for (const tid of tagIds || []) {
-		await db.query('INSERT INTO task_tags (task_id, tag_id) VALUES (?,?) ON CONFLICT (task_id, tag_id) DO NOTHING', [taskId, tid]);
+		await db.query('INSERT INTO task_tags (task_id, tag_id, position) VALUES (?,?,?)', [taskId, tid, pos++]);
 	}
 	return get(taskId);
 }

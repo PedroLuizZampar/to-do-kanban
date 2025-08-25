@@ -1,8 +1,8 @@
 const db = require('./database');
 
 async function list(boardId) {
-	if (boardId) return db.query('SELECT * FROM tags WHERE board_id = ? ORDER BY name ASC', [boardId]);
-	return db.query('SELECT * FROM tags ORDER BY name ASC');
+	if (boardId) return db.query('SELECT * FROM tags WHERE board_id = ? ORDER BY created_at ASC, id ASC', [boardId]);
+	return db.query('SELECT * FROM tags ORDER BY created_at ASC, id ASC');
 }
 
 async function get(id) {

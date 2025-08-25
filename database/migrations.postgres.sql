@@ -162,8 +162,19 @@ CREATE INDEX IF NOT EXISTS idx_tags_board ON tags(board_id);
 CREATE TABLE IF NOT EXISTS task_tags (
   task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE ON UPDATE CASCADE,
   tag_id  INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  position INTEGER NOT NULL DEFAULT 1,
   PRIMARY KEY (task_id, tag_id)
 );
+
+-- Garante coluna position em task_tags para bases antigas
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'task_tags' AND column_name = 'position'
+  ) THEN
+    ALTER TABLE task_tags ADD COLUMN position INTEGER NOT NULL DEFAULT 1;
+  END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS subtasks (
   id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

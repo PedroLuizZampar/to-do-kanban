@@ -97,6 +97,7 @@ const Board = (() => {
 			progress.classList.add('hidden');
 		}
 		const tagsWrap = $card.querySelector('.card-tags');
+		// Mantém ordem de vínculo (já vem do backend por tt.position)
 		(task.tags || []).forEach(t => tagsWrap.append(pill(t.name, t.color)));
 		// Avatares dos responsáveis
 		const avatarsWrap = document.createElement('div');
