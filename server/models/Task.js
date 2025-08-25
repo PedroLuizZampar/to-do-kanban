@@ -86,29 +86,36 @@ async function remove(id) {
 }
 
 async function move(id, toCategoryId, toPosition) {
-	// Reposiciona task na nova categoria e reorganiza posições
+	// Reposiciona task na nova categoria e reorganiza posições corretamente
 	const task = await get(id);
 	if (!task) return null;
 
-	// compacta posições na categoria antiga
-	if (task.category_id) {
-		const others = await db.query('SELECT id FROM tasks WHERE category_id = ? AND id <> ? ORDER BY position ASC', [task.category_id, id]);
-		let p = 1;
-		for (const o of others) await db.query('UPDATE tasks SET position = ? WHERE id = ?', [p++, o.id]);
+	const fromCategoryId = task.category_id;
+
+	// 1) Compacta posições na categoria de origem (excluindo a task a mover)
+	if (fromCategoryId) {
+		const others = await db.query('SELECT id FROM tasks WHERE category_id = ? AND id <> ? ORDER BY position ASC', [fromCategoryId, id]);
+		let pos = 1;
+		for (const o of others) {
+			await db.query('UPDATE tasks SET position = ? WHERE id = ?', [pos++, o.id]);
+		}
 	}
 
-	// define posição na categoria destino
-	const dest = await db.query('SELECT id FROM tasks WHERE category_id = ? ORDER BY position ASC', [toCategoryId]);
-	let p = 1;
-	const clamped = Math.max(1, Math.min(toPosition || dest.length + 1, dest.length + 1));
-	for (let i = 0; i < dest.length + 1; i++) {
-		if (i + 1 === clamped) {
-			await db.query('UPDATE tasks SET category_id = ?, position = ? WHERE id = ?', [toCategoryId, p++, id]);
-		}
-		if (i < dest.length) {
-			await db.query('UPDATE tasks SET position = ? WHERE id = ?', [p++, dest[i].id]);
-		}
+	// 2) Monta a nova ordem na categoria destino (sem a task, e insere na posição desejada)
+	const dest = await db.query('SELECT id FROM tasks WHERE category_id = ? AND id <> ? ORDER BY position ASC', [toCategoryId, id]);
+	const destIds = dest.map(r => r.id);
+	const maxPos = destIds.length + 1;
+	const clamped = Math.max(1, Math.min(Number(toPosition) || 1, maxPos));
+	// insere a task no índice (posição - 1)
+	destIds.splice(clamped - 1, 0, id);
+
+	// 3) Garante a categoria da task e aplica as posições finais no destino
+	await db.query('UPDATE tasks SET category_id = ? WHERE id = ?', [toCategoryId, id]);
+	let pos = 1;
+	for (const tid of destIds) {
+		await db.query('UPDATE tasks SET position = ? WHERE id = ?', [pos++, tid]);
 	}
+
 	return get(id);
 }
 

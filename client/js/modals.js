@@ -223,6 +223,12 @@ function tagForm(initial = {}) {
 async function taskForm(initial = {}) {
 	const cats = await api.get('/api/categories');
 	const tags = await api.get('/api/tags');
+	// Tarefas do board atual para montar opções de posição
+	let allTasks = [];
+	try {
+		const bid = window.$utils.getBoardId();
+		if (bid) allTasks = await api.get(`/api/tasks?boardId=${encodeURIComponent(bid)}`);
+	} catch {}
 	// carrega membros do quadro atual para atribuição
 	let members = [];
 	try { members = await api.get(`/api/boards/${window.$utils.getBoardId()}/invite/users?mode=members`); } catch {}
@@ -588,6 +594,54 @@ async function taskForm(initial = {}) {
 		return wrap;
 	})();
 
+	// Campo de Posição (dropdown custom, não suspenso)
+	function tasksCountIn(catId) { return (allTasks || []).filter(t => t.category_id === Number(catId)).length; }
+	let chosenPos = 1;
+	const posLabel = el('h5', {}, 'Posição');
+	let posLabelSpan; let posMenu;
+	const posDropdown = (() => {
+		const btn = el('button', { class: 'dropdown-toggle', type: 'button' });
+		posLabelSpan = el('span', { class: 'dropdown-label' }, '');
+		const icon = el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'expand_more');
+		btn.append(posLabelSpan, icon);
+		posMenu = el('div', { class: 'dropdown-menu pos-menu hidden' });
+		btn.addEventListener('click', () => posMenu.classList.toggle('hidden'));
+		return el('div', { class: 'dropdown' }, [btn, posMenu]);
+	})()
+	function updatePositionOptions() {
+		posMenu.innerHTML = '';
+			const count = tasksCountIn(chosenCatId);
+			const editingSameCategory = !!initial.id && Number(initial.category_id) === Number(chosenCatId);
+			const max = editingSameCategory ? count : (count + 1);
+			if (editingSameCategory && initial.position) {
+				chosenPos = Math.max(1, Math.min(initial.position, max));
+			} else {
+				chosenPos = max;
+			}
+			for (let i = 1; i <= max; i++) {
+			const item = el('button', { class: 'dropdown-item', type: 'button' }, String(i));
+			item.addEventListener('click', () => {
+				chosenPos = i;
+				posLabelSpan.textContent = String(i);
+				posMenu.classList.add('hidden');
+			});
+			posMenu.append(item);
+		}
+		posLabelSpan.textContent = String(chosenPos);
+	}
+	updatePositionOptions();
+	// atualizar ao trocar a coluna
+	(function hookCatChange() {
+		const btn = catDropdown.querySelector('.dropdown-toggle');
+		const menu = catDropdown.querySelector('.dropdown-menu');
+		if (!menu) return;
+		menu.querySelectorAll('.dropdown-item').forEach((it, idx) => {
+			it.addEventListener('click', () => {
+				setTimeout(() => updatePositionOptions(), 0);
+			});
+		});
+	})();
+
 
 	// UI de tags com dois lados (disponíveis e adicionadas)
 	const selectedTags = new Set((initial.tags || []).map(t => t.id));
@@ -642,7 +696,11 @@ async function taskForm(initial = {}) {
 		el('div', { class: 'row' }, [el('h5', {}, 'Título'), title]),
 		el('div', { class: 'row' }, [el('h5', {}, 'Descrição'), descEditor.root]),
 		el('div', { class: 'row' }, [attachmentsSection()]),
-		el('div', { class: 'row' }, [el('h5', {}, 'Coluna'), cats.length ? catDropdown : el('div', { class: 'muted' }, 'Nenhuma coluna disponível')]),
+		// Linha com Coluna (80%) e Posição (20%) lado a lado
+		el('div', { class: 'row', style: 'display:flex; gap:8px; align-items:flex-start;' }, [
+			el('div', { style: 'flex: 0 0 80%; max-width: 80%;' }, [el('h5', {}, 'Coluna'), cats.length ? catDropdown : el('div', { class: 'muted' }, 'Nenhuma coluna disponível')]),
+			el('div', { style: 'flex: 0 0 20%; max-width: 20%; padding-left: 8px;' }, [posLabel, posDropdown])
+		]),
 		el('div', { class: 'row' }, [
 			el('h5', {}, 'Checklist'),
 			el('div', {}, [
@@ -699,6 +757,8 @@ async function taskForm(initial = {}) {
 							try { await uploadFileToTask(saved.id, f); } catch {}
 						}
 					}
+					// Após salvar, mover para a posição selecionada
+					try { await api.post(`/api/tasks/${saved.id}/move`, { toCategoryId: Number(chosenCatId), toPosition: Number(chosenPos || 1) }); } catch {}
 					Modal.close();
 					document.dispatchEvent(new CustomEvent('refreshBoard'));
 				} catch (e) {

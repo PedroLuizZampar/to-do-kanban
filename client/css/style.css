@@ -223,6 +223,7 @@ body { overscroll-behavior-x: none; }
 .dropdown-toggle .material-symbols-outlined { color: var(--muted); }
 .dropdown-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dropdown-menu { position: static; margin: 0 auto; width: 97%; background: #fff; border: 1px solid var(--border); border-radius: 0px 0px 10px 10px; box-shadow: var(--shadow); max-height: none; overflow-y: visible; }
+.dropdown .pos-menu { max-height: calc(var(--dropdown-item-h) * 3); overflow-y: auto; }
 .dropdown-item { color: black; width: 100%; text-align: left; background: transparent; border: none; box-shadow: none; border-radius: none; display: block; }
 .dropdown-item:hover { background: #f3f6fb; }
 .checkrow { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; }
