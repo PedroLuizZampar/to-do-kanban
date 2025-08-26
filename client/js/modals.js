@@ -730,7 +730,8 @@ async function taskForm(initial = {}) {
 		try { templates = await api.get(`/api/templates?boardId=${encodeURIComponent(window.$utils.getBoardId())}`); }
 		catch { templates = []; }
 		templateSelectWrap.innerHTML = '';
-		if (!templates.length || isTemplateMode) return;
+		// Mostrar/aplicar templates somente na criação de tarefas (não em edição e não em modo template)
+		if (!templates.length || isTemplateMode || initial.id) return;
 		const label = el('label', {}, 'Usar template');
 		const btn = el('button', { class: 'dropdown-toggle', type: 'button' });
 		const lbl = el('span', { class: 'dropdown-label' }, 'Nenhum');
@@ -796,7 +797,7 @@ async function taskForm(initial = {}) {
 	const tplNameInput = el('input', { value: initial.template_name || '', placeholder: 'Ex.: Bug padrão' });
 	const content = el('div', {}, [
 		el('h3', {}, isTemplateMode ? (initial.id ? 'Editar template' : 'Novo template') : (initial.id ? 'Editar tarefa' : 'Nova tarefa')),
-		isTemplateMode ? el('div', { class: 'row' }, [el('label', {}, 'Nome do template'), tplNameInput]) : templateSelectWrap,
+		isTemplateMode ? el('div', { class: 'row' }, [el('label', {}, 'Nome do template'), tplNameInput]) : (!initial.id ? templateSelectWrap : el('div', { class: 'row', style: 'display:none' })),
 		el('div', { class: 'row' }, [el('h5', {}, 'Título'), title]),
 		el('div', { class: 'row' }, [el('h5', {}, 'Descrição'), descEditor.root]),
 		isTemplateMode ? el('div', { class: 'row', style: 'display:none' }) : el('div', { class: 'row' }, [attachmentsSection()]),
@@ -984,7 +985,9 @@ function helpContent() {
 	const items = [
 		['Alt + N', 'Nova tarefa'],
 		['Alt + C', 'Nova coluna'],
-		['Alt + T', 'Abrir gerenciador de tags'],
+		['Alt + E', 'Abrir gerenciador de tags'],
+		['Alt + T', 'Abrir gerenciador de templates'],
+		['Alt + M', 'Convites pendentes'],
 		['Alt + S', 'Compartilhar quadro'],
 		['Alt + Q', 'Novo quadro'],
 		['Alt + H', 'Abrir ajuda'],

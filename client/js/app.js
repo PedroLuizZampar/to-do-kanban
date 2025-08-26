@@ -400,7 +400,12 @@ document.addEventListener('DOMContentLoaded', () => {
 		const k = (e.key || '').toLowerCase();
 		if (k === 'n') { e.preventDefault(); if (!ensureBoard()) return; const cats = await api.get('/api/categories'); if (!cats.length) { $modals.toast.show('Crie uma coluna primeiro.'); return; } Modal.open(await taskForm()); }
 		if (k === 'c') { e.preventDefault(); if (!ensureBoard()) return; Modal.open(categoryForm()); }
-		if (k === 't') { e.preventDefault(); if (!ensureBoard()) return; $modals.tagManager(); }
+		// Alt+E: gerenciador de tags (antes era Alt+T)
+		if (k === 'e') { e.preventDefault(); if (!ensureBoard()) return; $modals.tagManager(); }
+		// Alt+T: gerenciador de templates
+		if (k === 't') { e.preventDefault(); if (!ensureBoard()) return; document.getElementById('btn-templates')?.click(); }
+		// Alt+M: convites pendentes (Inbox)
+		if (k === 'm') { e.preventDefault(); document.getElementById('btn-inbox')?.click(); }
 		if (k === 'h') { e.preventDefault(); $modals.openHelp(); }
 		if (k === 'q') { e.preventDefault(); Modal.open($modals.boardForm()); }
 	if (k === 's') { e.preventDefault(); if (!ensureBoard()) return; btnShare?.click(); }
