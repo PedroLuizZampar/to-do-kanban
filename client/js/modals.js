@@ -70,6 +70,61 @@ const Modal = (() => {
 	return { open, close };
 })();
 
+// Diálogos utilitários básicos (alerta e confirmação) e Toast
+function alertModal({ title = 'Aviso', message = '', okText = 'OK' } = {}) {
+	return new Promise((resolve) => {
+		const content = el('div', {}, [
+			el('h3', {}, title),
+			el('p', {}, message || ''),
+			el('footer', {}, [
+				el('button', { onclick: () => { Modal.close(); resolve(true); } }, okText)
+			])
+		]);
+		Modal.open(content);
+	});
+}
+
+function confirmModal({ title = 'Confirmar', message = '', confirmText = 'Confirmar', cancelText = 'Cancelar' } = {}) {
+	return new Promise((resolve) => {
+		const content = el('div', {}, [
+			el('h3', {}, title),
+			el('p', {}, message || ''),
+			el('footer', {}, [
+				el('button', { onclick: () => { Modal.close(); resolve(false); } }, cancelText),
+				el('button', { class: 'btn-danger', onclick: () => { Modal.close(); resolve(true); } }, confirmText)
+			])
+		]);
+		Modal.open(content);
+	});
+}
+
+const Toast = (() => {
+	let elToast;
+	let hideTimer;
+	function ensure() {
+		if (!elToast) {
+			elToast = document.createElement('div');
+			elToast.className = 'toast hidden';
+			document.body.appendChild(elToast);
+		}
+		return elToast;
+	}
+	function show(message, opts = {}) {
+		const t = ensure();
+		t.textContent = message || '';
+		t.classList.remove('hidden');
+		t.classList.toggle('toast-error', !!opts.error);
+		if (hideTimer) clearTimeout(hideTimer);
+		const dur = typeof opts.duration === 'number' ? opts.duration : 2200;
+		hideTimer = setTimeout(() => hide(), dur);
+	}
+	function hide() {
+		const t = ensure();
+		t.classList.add('hidden');
+	}
+	return { show, hide };
+})();
+
 function colorPickerRow(labelText, initialColor) {
 	const input = el('input', { type: 'color', value: initialColor || '#3b82f6', class: 'color-input' });
 	const swatch = el('span', { class: 'color-swatch' });
@@ -168,6 +223,7 @@ function tagForm(initial = {}) {
 }
 
 async function taskForm(initial = {}) {
+	const isTemplateMode = !!initial.__templateMode;
 	const cats = await api.get('/api/categories');
 	const tags = await api.get('/api/tags');
 	// Tarefas do board atual para montar opções de posição
@@ -537,7 +593,7 @@ async function taskForm(initial = {}) {
 		const labelSpan = el('span', { class: 'dropdown-label' }, cats.find(c => c.id === chosenCatId)?.name || 'Selecionar coluna');
 		const icon = el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'expand_more');
 		btn.append(labelSpan, icon);
-		const menu = el('div', { class: 'dropdown-menu hidden' });
+		const menu = el('div', { class: 'dropdown-menu limited-menu hidden' });
 		cats.forEach(c => {
 			const item = el('button', { class: 'dropdown-item', type: 'button' }, c.name);
 			item.addEventListener('click', () => {
@@ -667,13 +723,85 @@ async function taskForm(initial = {}) {
 	}
 	renderAssigneeBuckets();
 
+	// Seleção de template (cabeçalho do formulário normal)
+	let templates = [];
+	let templateSelectWrap = el('div');
+	async function loadTemplatesForBoard() {
+		try { templates = await api.get(`/api/templates?boardId=${encodeURIComponent(window.$utils.getBoardId())}`); }
+		catch { templates = []; }
+		templateSelectWrap.innerHTML = '';
+		if (!templates.length || isTemplateMode) return;
+		const label = el('label', {}, 'Usar template');
+		const btn = el('button', { class: 'dropdown-toggle', type: 'button' });
+		const lbl = el('span', { class: 'dropdown-label' }, 'Nenhum');
+		const icon = el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'expand_more');
+		btn.append(lbl, icon);
+		const menu = el('div', { class: 'dropdown-menu limited-menu hidden' });
+		const wrap = el('div', { class: 'dropdown' }, [btn, menu]);
+		btn.addEventListener('click', () => menu.classList.toggle('hidden'));
+		const none = el('button', { class: 'dropdown-item', type: 'button' }, 'Nenhum');
+		none.addEventListener('click', () => {
+			lbl.textContent = 'Nenhum';
+			menu.classList.add('hidden');
+			// limpar todo conteúdo do formulário
+			title.value = '';
+			descEditor.setValue('');
+			selectedTagsOrder = [];
+			selectedTagsSet = new Set();
+			renderBuckets();
+			subtasks.length = 0; renderChecklist();
+		});
+		menu.append(none);
+		templates.forEach(t => {
+			const item = el('button', { class: 'dropdown-item', type: 'button' }, t.name + (t.is_default ? ' (padrão)' : ''));
+			item.addEventListener('click', () => {
+				lbl.textContent = t.name;
+				menu.classList.add('hidden');
+				// aplica conteúdo do template
+				try {
+					const c = (typeof t.content === 'string') ? JSON.parse(t.content) : (t.content || {});
+					if (c.title) title.value = c.title;
+					if (c.description) descEditor.setValue(c.description);
+					// tags
+					if (Array.isArray(c.tags)) {
+						selectedTagsOrder = c.tags.slice();
+						selectedTagsSet = new Set(selectedTagsOrder);
+						renderBuckets();
+					}
+					// subtasks
+					if (Array.isArray(c.subtasks)) {
+						subtasks.length = 0; c.subtasks.forEach(s => subtasks.push({ title: s.title || String(s), done: !!s.done }));
+						renderChecklist();
+					}
+				} catch {}
+			});
+			menu.append(item);
+		});
+		templateSelectWrap.append(label, wrap);
+		// aplicar padrão automaticamente
+		const def = templates.find(t => t.is_default);
+		if (def) {
+			lbl.textContent = def.name;
+			try {
+				const c = (typeof def.content === 'string') ? JSON.parse(def.content) : (def.content || {});
+				title.value = c.title || '';
+				descEditor.setValue(c.description || '');
+				if (Array.isArray(c.tags)) { selectedTagsOrder = c.tags.slice(); selectedTagsSet = new Set(selectedTagsOrder); renderBuckets(); } else { selectedTagsOrder = []; selectedTagsSet = new Set(); renderBuckets(); }
+				if (Array.isArray(c.subtasks)) { subtasks.length = 0; c.subtasks.forEach(s => subtasks.push({ title: s.title || String(s), done: !!s.done })); renderChecklist(); } else { subtasks.length = 0; renderChecklist(); }
+			} catch { /* ignora parse */ }
+		}
+	}
+
+	// Evita acessar 'content' antes de inicialização
+	const tplNameInput = el('input', { value: initial.template_name || '', placeholder: 'Ex.: Bug padrão' });
 	const content = el('div', {}, [
-		el('h3', {}, initial.id ? 'Editar tarefa' : 'Nova tarefa'),
+		el('h3', {}, isTemplateMode ? (initial.id ? 'Editar template' : 'Novo template') : (initial.id ? 'Editar tarefa' : 'Nova tarefa')),
+		isTemplateMode ? el('div', { class: 'row' }, [el('label', {}, 'Nome do template'), tplNameInput]) : templateSelectWrap,
 		el('div', { class: 'row' }, [el('h5', {}, 'Título'), title]),
 		el('div', { class: 'row' }, [el('h5', {}, 'Descrição'), descEditor.root]),
-		el('div', { class: 'row' }, [attachmentsSection()]),
+		isTemplateMode ? el('div', { class: 'row', style: 'display:none' }) : el('div', { class: 'row' }, [attachmentsSection()]),
 		// Linha com Coluna (80%) e Posição (20%) lado a lado
-		el('div', { class: 'row', style: 'display:flex; gap:8px; align-items:flex-start;' }, [
+		isTemplateMode ? el('div', { class: 'row', style: 'display:none' }) : el('div', { class: 'row', style: 'display:flex; gap:8px; align-items:flex-start;' }, [
 			el('div', { style: 'flex: 0 0 80%; max-width: 80%;' }, [el('h5', {}, 'Coluna'), cats.length ? catDropdown : el('div', { class: 'muted' }, 'Nenhuma coluna disponível')]),
 			el('div', { style: 'flex: 0 0 20%; max-width: 20%; padding-left: 8px;' }, [posLabel, posDropdown])
 		]),
@@ -686,7 +814,7 @@ async function taskForm(initial = {}) {
 		]),
 		el('div', { class: 'row' }, [
 			el('h5', {}, 'Responsáveis'),
-			el('div', { class: 'tag-dual' }, [
+			isTemplateMode ? el('div', { class: 'muted' }, 'Não aplicável em template') : el('div', { class: 'tag-dual' }, [
 				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Disponíveis'), assigneesAvailable]),
 				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Atribuídos'), assigneesSelected]),
 			])
@@ -702,31 +830,51 @@ async function taskForm(initial = {}) {
 					el('button', { class: 'btn-danger', onclick: Modal.close }, 'Cancelar'),
 					el('button', { onclick: async () => {
 						if (!title.value.trim()) { await alertModal({ title: 'Campo obrigatório', message: 'Título é obrigatório.' }); return; }
-						if (!chosenCatId || !cats.length) { await alertModal({ title: 'Seleção necessária', message: 'Crie uma coluna antes de adicionar tarefas.' }); return; }
-				const payload = { title: title.value.trim(), description: descEditor.getValue().trim(), category_id: Number(chosenCatId) };
+						if (!isTemplateMode && (!chosenCatId || !cats.length)) { await alertModal({ title: 'Seleção necessária', message: 'Crie uma coluna antes de adicionar tarefas.' }); return; }
+					const payload = { title: title.value.trim(), description: descEditor.getValue().trim(), category_id: isTemplateMode ? null : Number(chosenCatId) };
 				try {
-					let saved;
-					if (initial.id) saved = await api.put(`/api/tasks/${initial.id}`, payload);
-					else saved = await api.post('/api/tasks', payload);
-					const tagsArr = selectedTagsOrder.slice();
-					await api.post(`/api/tasks/${saved.id}/tags`, { tags: tagsArr });
-				// salvar responsáveis
-				const assigneesArr = Array.from(selectedAssignees);
-				await api.post(`/api/tasks/${saved.id}/assignees`, { userIds: assigneesArr });
-				// salva subtarefas criadas no modo temporário
-				// valida duplicidade antes de enviar
-				{
-					const seen = new Set();
-					for (const s of subtasks) {
-						const key = (s.title || '').trim().toLowerCase();
-						if (!key) continue;
-						if (seen.has(key)) { await alertModal({ title: 'Duplicado', message: 'Existem subtarefas repetidas com o mesmo título.' }); return; }
-						seen.add(key);
+						let saved;
+						if (isTemplateMode) {
+							// Salvar/atualizar template
+							const tplContent = {
+								title: payload.title,
+								description: payload.description,
+								tags: selectedTagsOrder.slice(),
+								subtasks: subtasks.map(s => ({ title: s.title, done: !!s.done }))
+							};
+							const boardId = window.$utils.getBoardId();
+							const nameInput = tplNameInput;
+							const tplName = (nameInput?.value || initial.template_name || 'Template').trim();
+							if (!tplName) { await alertModal({ title: 'Nome obrigatório', message: 'Informe um nome para o template.' }); return; }
+							if (initial.id) saved = await api.put(`/api/templates/${initial.id}`, { name: tplName, content: tplContent, is_default: !!initial.is_default });
+							else saved = await api.post('/api/templates', { board_id: boardId, name: tplName, content: tplContent, is_default: !!initial.is_default });
+							// avisa gerenciadores para atualizarem
+							try { document.dispatchEvent(new CustomEvent('templatesChanged')); } catch {}
+						} else {
+							if (initial.id) saved = await api.put(`/api/tasks/${initial.id}`, payload);
+							else saved = await api.post('/api/tasks', payload);
+							const tagsArr = selectedTagsOrder.slice();
+							await api.post(`/api/tasks/${saved.id}/tags`, { tags: tagsArr });
+						}
+				// Operações somente para tarefas (não em modo template)
+				if (!isTemplateMode) {
+					// salvar responsáveis
+					const assigneesArr = Array.from(selectedAssignees);
+					await api.post(`/api/tasks/${saved.id}/assignees`, { userIds: assigneesArr });
+					// salva subtarefas criadas no modo temporário
+					// valida duplicidade antes de enviar
+					{
+						const seen = new Set();
+						for (const s of subtasks) {
+							const key = (s.title || '').trim().toLowerCase();
+							if (!key) continue;
+							if (seen.has(key)) { await alertModal({ title: 'Duplicado', message: 'Existem subtarefas repetidas com o mesmo título.' }); return; }
+							seen.add(key);
+						}
 					}
-				}
-				for (const s of subtasks) {
-					if (s._temp) await api.post(`/api/tasks/${saved.id}/subtasks`, { title: s.title, done: !!s.done });
-				}
+					for (const s of subtasks) {
+						if (s._temp) await api.post(`/api/tasks/${saved.id}/subtasks`, { title: s.title, done: !!s.done });
+					}
 					// Upload de anexos pendentes (quando criar nova tarefa)
 					if (!initial.id && pendingFiles.length) {
 						for (const f of pendingFiles) {
@@ -735,8 +883,9 @@ async function taskForm(initial = {}) {
 					}
 					// Após salvar, mover para a posição selecionada
 					try { await api.post(`/api/tasks/${saved.id}/move`, { toCategoryId: Number(chosenCatId), toPosition: Number(chosenPos || 1) }); } catch {}
+				}
 					Modal.close();
-					document.dispatchEvent(new CustomEvent('refreshBoard'));
+						if (!isTemplateMode) document.dispatchEvent(new CustomEvent('refreshBoard'));
 				} catch (e) {
 					let msg = 'Não foi possível salvar a tarefa.';
 					try { const j = JSON.parse(e.message); if (j.error) msg = j.error; } catch {}
@@ -745,6 +894,7 @@ async function taskForm(initial = {}) {
 			} }, 'Salvar'),
 		]),
 	]);
+		await loadTemplatesForBoard();
 	// ao retomar este modal (após fechar o de nova tag), recarrega tags e re-renderiza buckets
 	content.addEventListener('modal:resumed', async () => {
 		try {

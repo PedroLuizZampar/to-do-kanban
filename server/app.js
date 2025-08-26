@@ -12,6 +12,7 @@ const taskRoutes = require('./routes/taskRoutes');
 const boardRoutes = require('./routes/boardRoutes');
 const subtaskRoutes = require('./routes/subtaskRoutes');
 const attachmentRoutes = require('./routes/attachmentRoutes');
+const templateRoutes = require('./routes/templateRoutes');
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const profileRoutes = require('./routes/profileRoutes');
@@ -48,6 +49,7 @@ app.use('/api/tasks/:taskId/subtasks', auth, subtaskRoutes);
 app.use('/api/tasks/:taskId/attachments', auth, attachmentRoutes);
 app.use('/api/subtasks', auth, subtaskRoutes);
 app.use('/api/boards', auth, boardRoutes);
+app.use('/api/templates', auth, templateRoutes);
 
 // Health
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));

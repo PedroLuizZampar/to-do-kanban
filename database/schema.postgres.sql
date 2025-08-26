@@ -11,6 +11,7 @@ DROP FUNCTION IF EXISTS create_default_board_for_user();
 DROP FUNCTION IF EXISTS set_updated_at() CASCADE;
 
 DROP TABLE IF EXISTS user_notifications CASCADE;
+DROP TABLE IF EXISTS templates CASCADE;
 DROP TABLE IF EXISTS task_assignees CASCADE;
 DROP TABLE IF EXISTS subtasks CASCADE;
 DROP TABLE IF EXISTS task_tags CASCADE;
@@ -231,6 +232,23 @@ CREATE TABLE user_notifications (
   task_id   INTEGER NULL REFERENCES tasks(id) ON DELETE CASCADE ON UPDATE CASCADE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Templates de tarefa por quadro
+CREATE TABLE templates (
+  id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  board_id    INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  name        VARCHAR(150) NOT NULL,
+  content     JSONB NOT NULL,
+  is_default  BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_templates_board ON templates(board_id);
+
+CREATE TRIGGER trg_templates_updated_at
+BEFORE UPDATE ON templates
+FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- Trigger: cria automaticamente um quadro padrão e 3 colunas para cada novo usuário
 CREATE OR REPLACE FUNCTION create_default_board_for_user()

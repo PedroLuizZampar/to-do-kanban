@@ -176,6 +176,25 @@ DO $$ BEGIN
   END IF;
 END $$;
 
+-- Templates de tarefa
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'templates') THEN
+    CREATE TABLE templates (
+      id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+      board_id    INTEGER NOT NULL REFERENCES boards(id) ON DELETE CASCADE ON UPDATE CASCADE,
+      name        VARCHAR(150) NOT NULL,
+      content     JSONB NOT NULL,
+      is_default  BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX idx_templates_board ON templates(board_id);
+    CREATE TRIGGER trg_templates_updated_at
+    BEFORE UPDATE ON templates
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS subtasks (
   id         INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   task_id    INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE ON UPDATE CASCADE,

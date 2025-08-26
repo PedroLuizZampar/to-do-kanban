@@ -187,6 +187,64 @@ document.addEventListener('DOMContentLoaded', () => {
 	});
 	document.getElementById('btn-new-category').addEventListener('click', () => { if (!ensureBoard()) return; Modal.open(categoryForm()); });
 	document.getElementById('btn-new-tag').addEventListener('click', () => { if (!ensureBoard()) return; $modals.tagManager(); });
+		document.getElementById('btn-templates').addEventListener('click', async () => {
+			if (!ensureBoard()) return;
+			const boardId = window.$utils.getBoardId();
+			const root = el('div');
+			root.append(el('h3', {}, 'Templates'));
+			const listEl = el('div', { class: 'tag-list' });
+			async function refresh() {
+				listEl.innerHTML = '';
+				let tpls = [];
+				try { tpls = await api.get(`/api/templates?boardId=${encodeURIComponent(boardId)}`); } catch {}
+				if (!tpls.length) listEl.append(el('p', { class: 'muted' }, 'Nenhum template.'));
+				tpls.forEach(t => {
+					const left = el('div', { class: 'tag-left' }, [
+						el('span', { class: 'tag', style: 'background:#e5e7eb;color:#111' }, t.name),
+						t.is_default ? el('small', { class: 'muted' }, ' — padrão') : ''
+					]);
+					const actions = el('div', { class: 'tag-actions' }, [
+						el('button', { class: 'btn-ghost btn-favorite', title: t.is_default ? 'Remover padrão' : 'Definir como padrão', onclick: async () => {
+							if (t.is_default) {
+								await api.del(`/api/templates/default`);
+							} else {
+								await api.post(`/api/templates/${t.id}/default`, {});
+							}
+							await refresh();
+						}}, [
+							el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true', style: t.is_default ? 'color:#f59e0b' : '' }, 'star'),
+							el('span', { class: 'sr-only' }, 'Definir padrão')
+						]),
+						el('button', { class: 'btn-ghost btn-edit', title: 'Editar template', onclick: async () => {
+							const tpl = await api.get(`/api/templates/${t.id}`);
+							Modal.open(await taskForm({ __templateMode: true, id: tpl.id, template_name: tpl.name, is_default: tpl.is_default, title: (tpl.content?.title || ''), description: (tpl.content?.description || ''), tags: (tpl.content?.tags || []).map(id => ({ id })), subtasks: (tpl.content?.subtasks || []) }));
+						}}, [
+							el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'edit'),
+							el('span', { class: 'sr-only' }, 'Editar')
+						]),
+						el('button', { class: 'btn-ghost btn-delete', title: 'Excluir template', onclick: async () => { const ok = await $modals.confirm({ title: 'Excluir template', message: `Excluir "${t.name}"?`, confirmText: 'Excluir' }); if (!ok) return; await api.del(`/api/templates/${t.id}`); await refresh(); } }, [
+							el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'delete'),
+							el('span', { class: 'sr-only' }, 'Excluir')
+						])
+					]);
+					const row = el('div', { class: 'tag-row' }, [left, actions]);
+					listEl.append(row);
+				});
+			}
+			await refresh();
+			root.append(listEl);
+			root.append(el('footer', {}, [
+				el('button', { class: 'btn-danger', onclick: Modal.close }, 'Fechar'),
+				el('button', { onclick: async () => { Modal.open(await taskForm({ __templateMode: true })); } }, 'Novo template')
+			]));
+			Modal.open(root);
+			// atualizar ao retomar (quando fechar o modal filho)
+			root.addEventListener('modal:resumed', async () => { await refresh(); });
+			// ouvir eventos globais de mudanças
+			const onTplChanged = async () => { await refresh(); };
+			document.addEventListener('templatesChanged', onTplChanged);
+			root.addEventListener('modal:cleanup', () => { document.removeEventListener('templatesChanged', onTplChanged); });
+		});
 	document.getElementById('btn-help').addEventListener('click', () => $modals.openHelp());
 
 	// Compartilhar quadro
