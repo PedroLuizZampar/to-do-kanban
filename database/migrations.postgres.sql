@@ -159,6 +159,22 @@ END $$;
 
 CREATE INDEX IF NOT EXISTS idx_tags_board ON tags(board_id);
 
+-- Garantir coluna position em tags (ordem por quadro)
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'tags' AND column_name = 'position'
+  ) THEN
+    ALTER TABLE tags ADD COLUMN position INTEGER NOT NULL DEFAULT 1;
+    -- Backfill: define posições sequenciais por board
+    WITH t AS (
+      SELECT id, board_id, ROW_NUMBER() OVER (PARTITION BY board_id ORDER BY created_at ASC, id ASC) AS rn
+      FROM tags
+    )
+    UPDATE tags x SET position = t.rn FROM t WHERE x.id = t.id;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS task_tags (
   task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE ON UPDATE CASCADE,
   tag_id  INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE ON UPDATE CASCADE,
@@ -185,6 +201,7 @@ DO $$ BEGIN
       name        VARCHAR(150) NOT NULL,
       content     JSONB NOT NULL,
       is_default  BOOLEAN NOT NULL DEFAULT FALSE,
+  position    INTEGER NOT NULL DEFAULT 1,
       created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
       updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
     );
@@ -192,6 +209,21 @@ DO $$ BEGIN
     CREATE TRIGGER trg_templates_updated_at
     BEFORE UPDATE ON templates
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+  END IF;
+END $$;
+
+-- Garantir coluna position em templates para bases já existentes
+DO $$ BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'templates') AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_name = 'templates' AND column_name = 'position'
+  ) THEN
+    ALTER TABLE templates ADD COLUMN position INTEGER NOT NULL DEFAULT 1;
+    -- Backfill: posições por board
+    WITH t AS (
+      SELECT id, board_id, ROW_NUMBER() OVER (PARTITION BY board_id ORDER BY created_at ASC, id ASC) AS rn
+      FROM templates
+    )
+    UPDATE templates x SET position = t.rn FROM t WHERE x.id = t.id;
   END IF;
 END $$;
 

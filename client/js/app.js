@@ -191,8 +191,35 @@ document.addEventListener('DOMContentLoaded', () => {
 			if (!ensureBoard()) return;
 			const boardId = window.$utils.getBoardId();
 			const root = el('div');
-			root.append(el('h3', {}, 'Templates'));
+			root.append(el('h3', { class: 'card-title' }, 'Templates'));
 			const listEl = el('div', { class: 'tag-list' });
+			function enableDragTemplates(container) {
+				container.querySelectorAll('.tag-row').forEach((row) => {
+					row.setAttribute('draggable', 'true');
+					row.addEventListener('dragstart', () => row.classList.add('dragging'));
+					row.addEventListener('dragend', async () => {
+						row.classList.remove('dragging');
+						const order = [...container.querySelectorAll('.tag-row')].map(r => Number(r.dataset.id)).filter(Boolean);
+						try {
+							await api.post('/api/templates/reorder', { boardId, order });
+							document.dispatchEvent(new CustomEvent('templatesChanged'));
+						} catch {}
+					});
+				});
+				container.addEventListener('dragover', (e) => {
+					e.preventDefault();
+					const els = [...container.querySelectorAll('.tag-row:not(.dragging)')];
+					let closest = null; let closestOffset = Number.NEGATIVE_INFINITY;
+					for (const el of els) {
+						const box = el.getBoundingClientRect();
+						const offset = e.clientY - box.top - box.height / 2;
+						if (offset < 0 && offset > closestOffset) { closestOffset = offset; closest = el; }
+					}
+					const dragging = container.querySelector('.tag-row.dragging');
+					if (!dragging) return;
+					if (!closest) container.append(dragging); else container.insertBefore(dragging, closest);
+				});
+			}
 			async function refresh() {
 				listEl.innerHTML = '';
 				let tpls = [];
@@ -200,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
 				if (!tpls.length) listEl.append(el('p', { class: 'muted' }, 'Nenhum template.'));
 				tpls.forEach(t => {
 					const left = el('div', { class: 'tag-left' }, [
+						el('span', { class: 'material-symbols-outlined drag-handle', title: 'Arraste para reordenar', 'aria-hidden': 'true' }, 'drag_indicator'),
 						el('span', { class: 'tag', style: 'background:#e5e7eb;color:#111' }, t.name),
 						t.is_default ? el('small', { class: 'muted' }, ' — padrão') : ''
 					]);
@@ -227,9 +255,10 @@ document.addEventListener('DOMContentLoaded', () => {
 							el('span', { class: 'sr-only' }, 'Excluir')
 						])
 					]);
-					const row = el('div', { class: 'tag-row' }, [left, actions]);
+					const row = el('div', { class: 'tag-row', 'data-id': String(t.id) }, [left, actions]);
 					listEl.append(row);
 				});
+				enableDragTemplates(listEl);
 			}
 			await refresh();
 			root.append(listEl);
@@ -253,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (!ensureBoard()) return;
 		const boardId = window.$utils.getBoardId();
 		const root = el('div');
-		root.append(el('h3', {}, 'Compartilhar quadro'));
+		root.append(el('h3', { class: 'card-title' }, 'Compartilhar quadro'));
 		const list = el('div', { class: 'tag-list' });
 		const selected = new Set();
 		async function refreshUsers() {
@@ -310,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (!membersNoSelf.length) return;
 		const openMembersModal = () => {
 			const root = el('div');
-			root.append(el('h3', {}, 'Participantes do quadro'));
+			root.append(el('h3', { class: 'card-title' }, 'Participantes do quadro'));
 			const list = el('div', { class: 'tag-list' });
 			members.forEach(u => {
 				const row = el('div', { class: 'tag-row' });
@@ -326,7 +355,6 @@ document.addEventListener('DOMContentLoaded', () => {
 				list.append(row);
 			});
 			root.append(list);
-			root.append(el('footer', {}, [el('button', { class: 'btn-ghost', onclick: Modal.close }, 'Fechar')]));
 			Modal.open(root);
 		};
 		membersNoSelf.slice(0,3).forEach(u => {
@@ -371,7 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
 	if (btnInbox) btnInbox.addEventListener('click', async () => {
 		const items = await loadInboxCount();
 		const root = el('div');
-		root.append(el('h3', {}, 'Convites pendentes'));
+		root.append(el('h3', { class: 'card-title' }, 'Convites pendentes'));
 		if (!items.length) {
 			root.append(el('p', { class: 'muted' }, 'Sem convites no momento.'));
 			return Modal.open(root);

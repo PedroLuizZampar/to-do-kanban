@@ -61,12 +61,10 @@ const Board = (() => {
 			board.append($col);
 		});
 		// Tile de nova coluna ao final
-		const addTile = el('section', { class: 'column column-add' }, [
-			el('button', { class: 'btn-add-column', onclick: () => Modal.open(categoryForm()) }, [
+		const addTile =	el('button', { class: 'btn-add-column', onclick: () => Modal.open(categoryForm()) }, [
 				el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'add'),
 				'Nova coluna'
-			])
-		]);
+			]);
 		board.append(addTile);
 
 		enableColumnDrag();

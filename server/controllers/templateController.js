@@ -68,3 +68,13 @@ module.exports.clearDefault = async (req, res) => {
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message || 'Erro ao remover padrão' }); }
 };
+
+module.exports.reorder = async (req, res) => {
+  try {
+    const boardId = Number(req.body.boardId || req.query.boardId);
+    const order = req.body.order;
+    if (!boardId || !Array.isArray(order)) return res.status(400).json({ error: 'boardId e order[] são obrigatórios' });
+    const rows = await Templates.reorder(boardId, order.map(Number));
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message || 'Erro ao reordenar templates' }); }
+};

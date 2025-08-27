@@ -74,7 +74,7 @@ const Modal = (() => {
 function alertModal({ title = 'Aviso', message = '', okText = 'OK' } = {}) {
 	return new Promise((resolve) => {
 		const content = el('div', {}, [
-			el('h3', {}, title),
+			el('h3', { class: 'card-title' }, title),
 			el('p', {}, message || ''),
 			el('footer', {}, [
 				el('button', { onclick: () => { Modal.close(); resolve(true); } }, okText)
@@ -87,7 +87,7 @@ function alertModal({ title = 'Aviso', message = '', okText = 'OK' } = {}) {
 function confirmModal({ title = 'Confirmar', message = '', confirmText = 'Confirmar', cancelText = 'Cancelar' } = {}) {
 	return new Promise((resolve) => {
 		const content = el('div', {}, [
-			el('h3', {}, title),
+			el('h3', { class: 'card-title' }, title),
 			el('p', {}, message || ''),
 			el('footer', {}, [
 				el('button', { onclick: () => { Modal.close(); resolve(false); } }, cancelText),
@@ -165,7 +165,7 @@ function categoryForm(initial = {}) {
 	const description = el('textarea', { placeholder: 'Descrição' }, initial.description || '');
 	const { row: colorRow, input: color } = colorPickerRow('Cor', initial.color || '#3b82f6');
 	const content = el('div', {}, [
-		el('h3', {}, initial.id ? 'Editar coluna' : 'Nova coluna'),
+		el('h3', { class: 'card-title' }, initial.id ? 'Editar coluna' : 'Nova coluna'),
 		el('div', { class: 'row' }, [el('label', {}, 'Nome'), name]),
 		el('div', { class: 'row' }, [el('label', {}, 'Descrição'), description]),
 		colorRow,
@@ -195,7 +195,7 @@ function tagForm(initial = {}) {
 	const description = el('textarea', { placeholder: 'Descrição' }, initial.description || '');
 	const { row: colorRow, input: color } = colorPickerRow('Cor', initial.color || '#172554');
 	const content = el('div', {}, [
-		el('h3', {}, initial.id ? 'Editar tag' : 'Nova tag'),
+		el('h3', { class: 'card-title' }, initial.id ? 'Editar tag' : 'Nova tag'),
 		el('div', { class: 'row' }, [el('label', {}, 'Nome'), name]),
 		el('div', { class: 'row' }, [el('label', {}, 'Descrição'), description]),
 		colorRow,
@@ -225,7 +225,7 @@ function tagForm(initial = {}) {
 async function taskForm(initial = {}) {
 	const isTemplateMode = !!initial.__templateMode;
 	const cats = await api.get('/api/categories');
-	const tags = await api.get('/api/tags');
+	const tags = await api.get(`/api/tags?boardId=${encodeURIComponent(window.$utils.getBoardId() || '')}`);
 	// Tarefas do board atual para montar opções de posição
 	let allTasks = [];
 	try {
@@ -339,6 +339,10 @@ async function taskForm(initial = {}) {
 				ta.style.height = h + 'px';
 			} catch {}
 		}
+		// Garante sincronização após mudanças de layout (ex.: entrar no modo de edição)
+		function syncAfterLayout() {
+			try { requestAnimationFrame(() => requestAnimationFrame(syncHeights)); } catch { syncHeights(); }
+		}
 		const render = () => {
 			const val = ta.value || '';
 			if (!val.trim()) {
@@ -351,7 +355,11 @@ async function taskForm(initial = {}) {
 			preview.innerHTML = mdToHtml(val);
 			syncHeights();
 		};
-		const setEditing = (on) => { root.classList.toggle('editing', !!on); };
+		const setEditing = (on) => {
+			root.classList.toggle('editing', !!on);
+			// ao alternar modo, o preview muda de largura/altura; sincroniza a textarea
+			syncAfterLayout();
+		};
 		// Render inicial e estado não editando
 		render();
 		setEditing(false);
@@ -367,7 +375,8 @@ async function taskForm(initial = {}) {
 			if (a) return; // permite abrir links normalmente
 			if (!root.classList.contains('editing')) {
 				setEditing(true);
-				setTimeout(() => ta.focus(), 0);
+				// foca e garante altura alinhada imediatamente ao abrir edição
+				setTimeout(() => { ta.focus(); syncAfterLayout(); }, 0);
 			}
 		});
 		// Manter preview atualizado
@@ -381,6 +390,7 @@ async function taskForm(initial = {}) {
 			// Só ativa edição quando o foco entrar na textarea (md-input) ou toolbar
 			if (t && (t.closest && (t.closest('.md-input') || t.closest('.md-toolbar')))) {
 				setEditing(true);
+				syncAfterLayout();
 			}
 		});
 		root.addEventListener('focusout', () => {
@@ -482,7 +492,7 @@ async function taskForm(initial = {}) {
 					const img = el('img', { src: a.url, alt: a.filename || 'anexo' });
 			img.addEventListener('click', () => {
 						const viewer = el('div', { class: 'image-viewer', 'data-modal-wide': 'true' }, [
-					el('h3', {}, a.filename || 'Imagem'),
+					el('h3', { class: 'card-title' }, a.filename || 'Imagem'),
 					el('div', { class: 'image-viewer-body' }, [el('img', { src: a.url, alt: a.filename || 'imagem' })]),
 					el('footer', {}, [el('button', { onclick: Modal.close }, 'Fechar')])
 				]);
@@ -512,7 +522,7 @@ async function taskForm(initial = {}) {
 						img.addEventListener('load', () => { try { URL.revokeObjectURL(url); } catch {} });
 						img.addEventListener('click', () => {
 									const viewer = el('div', { class: 'image-viewer', 'data-modal-wide': 'true' }, [
-								el('h3', {}, f.name || 'Imagem'),
+								el('h3', { class: 'card-title' }, f.name || 'Imagem'),
 								el('div', { class: 'image-viewer-body' }, [el('img', { src: url, alt: f.name || 'imagem' })]),
 								el('footer', {}, [el('button', { onclick: Modal.close }, 'Fechar')])
 							]);
@@ -577,7 +587,7 @@ async function taskForm(initial = {}) {
 
 	function attachmentsSection() {
 		const wrap = el('div', { class: 'attachments-section' }, [
-			el('h5', {}, 'Uploads'),
+			el('h5', { class: 'separator' }, 'Uploads'),
 			el('div', { class: 'file-upload' }, [fileInput, dropzone]),
 			thumbsWrap
 		]);
@@ -611,7 +621,7 @@ async function taskForm(initial = {}) {
 	// Campo de Posição (dropdown custom, não suspenso)
 	function tasksCountIn(catId) { return (allTasks || []).filter(t => t.category_id === Number(catId)).length; }
 	let chosenPos = 1;
-	const posLabel = el('h5', {}, 'Posição');
+	const posLabel = el('h5', { class: 'separator' }, 'Posição');
 	let posLabelSpan; let posMenu;
 	const posDropdown = (() => {
 		const btn = el('button', { class: 'dropdown-toggle', type: 'button' });
@@ -692,8 +702,14 @@ async function taskForm(initial = {}) {
 			if (t) selectedWrap.append(makeTagPill(t, true));
 		}
 		// Disponíveis: qualquer ordem estável (criação)
-		const avail = tags.filter(t => !selectedTagsSet.has(t.id))
-			.sort((a,b) => new Date(a.created_at) - new Date(b.created_at) || a.id - b.id);
+		const avail = tags
+			.filter(t => !selectedTagsSet.has(t.id))
+			.sort((a, b) => {
+				const pa = (a.position ?? Number.MAX_SAFE_INTEGER);
+				const pb = (b.position ?? Number.MAX_SAFE_INTEGER);
+				if (pa !== pb) return pa - pb;
+				return (a.id || 0) - (b.id || 0);
+			});
 		for (const t of avail) availableWrap.append(makeTagPill(t, false));
 	}
 	renderBuckets();
@@ -732,7 +748,7 @@ async function taskForm(initial = {}) {
 		templateSelectWrap.innerHTML = '';
 		// Mostrar/aplicar templates somente na criação de tarefas (não em edição e não em modo template)
 		if (!templates.length || isTemplateMode || initial.id) return;
-		const label = el('label', {}, 'Usar template');
+		const label = el('h5', { class: 'separator' }, 'Usar template');
 		const btn = el('button', { class: 'dropdown-toggle', type: 'button' });
 		const lbl = el('span', { class: 'dropdown-label' }, 'Nenhum');
 		const icon = el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'expand_more');
@@ -796,32 +812,32 @@ async function taskForm(initial = {}) {
 	// Evita acessar 'content' antes de inicialização
 	const tplNameInput = el('input', { value: initial.template_name || '', placeholder: 'Ex.: Bug padrão' });
 	const content = el('div', {}, [
-		el('h3', {}, isTemplateMode ? (initial.id ? 'Editar template' : 'Novo template') : (initial.id ? 'Editar tarefa' : 'Nova tarefa')),
+		el('h3', { class: 'card-title' }, isTemplateMode ? (initial.id ? 'Editar template' : 'Novo template') : (initial.id ? 'Editar tarefa' : 'Nova tarefa')),
 		isTemplateMode ? el('div', { class: 'row' }, [el('label', {}, 'Nome do template'), tplNameInput]) : (!initial.id ? templateSelectWrap : el('div', { class: 'row', style: 'display:none' })),
-		el('div', { class: 'row' }, [el('h5', {}, 'Título'), title]),
-		el('div', { class: 'row' }, [el('h5', {}, 'Descrição'), descEditor.root]),
+		el('div', { class: 'row' }, [el('h5', { class: 'separator' }, 'Título'), title]),
+		el('div', { class: 'row' }, [el('h5', { class: 'separator' }, 'Descrição'), descEditor.root]),
 		isTemplateMode ? el('div', { class: 'row', style: 'display:none' }) : el('div', { class: 'row' }, [attachmentsSection()]),
 		// Linha com Coluna (80%) e Posição (20%) lado a lado
 		isTemplateMode ? el('div', { class: 'row', style: 'display:none' }) : el('div', { class: 'row', style: 'display:flex; gap:8px; align-items:flex-start;' }, [
-			el('div', { style: 'flex: 0 0 80%; max-width: 80%;' }, [el('h5', {}, 'Coluna'), cats.length ? catDropdown : el('div', { class: 'muted' }, 'Nenhuma coluna disponível')]),
+			el('div', { style: 'flex: 0 0 80%; max-width: 80%;' }, [el('h5', { class: 'separator' }, 'Coluna'), cats.length ? catDropdown : el('div', { class: 'muted' }, 'Nenhuma coluna disponível')]),
 			el('div', { style: 'flex: 0 0 20%; max-width: 20%; padding-left: 8px;' }, [posLabel, posDropdown])
 		]),
 		el('div', { class: 'row' }, [
-			el('h5', {}, 'Checklist'),
+			el('h5', { class: 'separator' }, 'Checklist'),
 			el('div', {}, [
 				checklistWrap,
 				el('div', { class: 'checklist-actions' }, [inputNew, btnAddSub])
 			])
 		]),
 		el('div', { class: 'row' }, [
-			el('h5', {}, 'Responsáveis'),
+			el('h5', { class: 'separator' }, 'Responsáveis'),
 			isTemplateMode ? el('div', { class: 'muted' }, 'Não aplicável em template') : el('div', { class: 'tag-dual' }, [
 				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Disponíveis'), assigneesAvailable]),
 				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Atribuídos'), assigneesSelected]),
 			])
 		]),
 		el('div', { class: 'row' }, [
-			el('h5', {}, 'Tags'),
+			el('h5', { class: 'separator' }, 'Tags'),
 			el('div', { class: 'tag-dual' }, [
 				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Disponíveis'), availableWrap]),
 				el('div', { class: 'tag-bucket-wrap' }, [el('small', { class: 'muted' }, 'Adicionadas'), selectedWrap]),
@@ -899,7 +915,7 @@ async function taskForm(initial = {}) {
 	// ao retomar este modal (após fechar o de nova tag), recarrega tags e re-renderiza buckets
 	content.addEventListener('modal:resumed', async () => {
 		try {
-			const fresh = await api.get('/api/tags');
+			const fresh = await api.get(`/api/tags?boardId=${encodeURIComponent(window.$utils.getBoardId() || '')}`);
 			tags.length = 0; fresh.forEach(t => tags.push(t));
 			renderBuckets();
 		} catch {}
@@ -907,7 +923,7 @@ async function taskForm(initial = {}) {
 	// Atualiza buckets se uma tag foi criada/alterada em outro modal sem empilhar (evento global)
 	const onTagsChanged = async () => {
 		try {
-			const fresh = await api.get('/api/tags');
+			const fresh = await api.get(`/api/tags?boardId=${encodeURIComponent(window.$utils.getBoardId() || '')}`);
 			tags.length = 0; fresh.forEach(t => tags.push(t));
 			renderBuckets();
 		} catch {}
@@ -929,12 +945,51 @@ window.$modals.toast.hide = () => Toast.hide();
 async function tagManager() {
 	const root = el('div', {});
 	const listEl = el('div', { class: 'tag-list' });
+
+	function enableDrag(container) {
+		container.querySelectorAll('.tag-row').forEach((row) => {
+			row.setAttribute('draggable', 'true');
+			row.addEventListener('dragstart', () => row.classList.add('dragging'));
+			row.addEventListener('dragend', async () => {
+				row.classList.remove('dragging');
+				// Persistir nova ordem
+				const order = [...container.querySelectorAll('.tag-row')].map(r => Number(r.dataset.id)).filter(Boolean);
+				try {
+					const boardId = window.$utils.getBoardId();
+					await api.post('/api/tags/reorder', { boardId, order });
+					// Dispara refresh geral
+					document.dispatchEvent(new CustomEvent('tagsChanged'));
+				} catch {}
+			});
+		});
+		container.addEventListener('dragover', (e) => {
+			e.preventDefault();
+			const after = (() => {
+				const els = [...container.querySelectorAll('.tag-row:not(.dragging)')];
+				let closest = null; let closestOffset = Number.NEGATIVE_INFINITY;
+				for (const el of els) {
+					const box = el.getBoundingClientRect();
+					const offset = e.clientY - box.top - box.height / 2;
+					if (offset < 0 && offset > closestOffset) { closestOffset = offset; closest = el; }
+				}
+				return closest;
+			})();
+			const dragging = container.querySelector('.tag-row.dragging');
+			if (!dragging) return;
+			if (!after) container.append(dragging); else container.insertBefore(dragging, after);
+		});
+	}
 	async function refresh() {
 		listEl.innerHTML = '';
-		const tags = await api.get('/api/tags');
+		const boardId = window.$utils.getBoardId();
+		const tags = await api.get(`/api/tags?boardId=${encodeURIComponent(boardId || '')}`);
 		if (!tags.length) { listEl.append(el('p', { class: 'muted' }, 'Nenhuma tag.')); return; }
-		tags.forEach(t => {
-			const left = el('div', { class: 'tag-left' }, [pill(t.name, t.color), t.description ? el('small', { class: 'muted' }, ` — ${t.description}`) : '']);
+			tags.forEach(t => {
+			const left = el('div', { class: 'tag-left' }, [
+				el('span', { class: 'material-symbols-outlined drag-handle', title: 'Arraste para reordenar', 'aria-hidden': 'true' }, 'drag_indicator'),
+				pill(t.name, t.color),
+				t.description ? el('small', { class: 'muted' }, ` — ${t.description}`) : ''
+			]);
             const actions = el('div', { class: 'tag-actions' }, [
                 el('button', { class: 'btn-ghost btn-edit', title: 'Editar tag', onclick: async () => { Modal.open(tagForm(t)); } }, [
                     el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'edit'),
@@ -952,13 +1007,14 @@ async function tagManager() {
                     el('span', { class: 'sr-only' }, 'Excluir')
                 ])
             ]);
-			const row = el('div', { class: 'tag-row' }, [left, actions]);
+			const row = el('div', { class: 'tag-row', 'data-id': String(t.id) }, [left, actions]);
 			listEl.append(row);
 		});
+		enableDrag(listEl);
 	}
 	await refresh();
 	root.append(
-		el('h3', {}, 'Tags'),
+		el('h3', { class: 'card-title' }, 'Tags'),
 		listEl,
 		el('footer', {}, [
 			el('button', { class: 'btn-danger', onclick: Modal.close }, 'Fechar'),
@@ -996,10 +1052,9 @@ function helpContent() {
 	const list = el('ul', { class: 'help-list' }, items.map(([k, d]) => el('li', {}, [el('code', {}, k), ' — ', d])));
 	// Removido botão de gerenciar quadros aqui; gestão fica na sidebar
 	return el('div', {}, [
-		el('h3', {}, 'Atalhos do teclado'),
+		el('h3', { class: 'card-title' }, 'Atalhos do teclado'),
 		el('p', { class: 'muted' }, 'Use Alt + tecla nas combinações abaixo:'),
 		list,
-		el('footer', {}, [el('button', { onclick: Modal.close }, 'Fechar')])
 	]);
 }
 
@@ -1030,7 +1085,7 @@ async function boardManager() {
 	}
 	await refresh();
 	const content = el('div', {}, [
-		el('h3', {}, 'Quadros'),
+		el('h3', { class: 'card-title' }, 'Quadros'),
 		listEl,
 		el('footer', {}, [
 			el('button', { onclick: () => Modal.open(boardForm()) }, 'Novo quadro'),
@@ -1045,7 +1100,7 @@ function boardForm(initial = {}) {
 	const description = el('textarea', { placeholder: 'Descrição' }, initial.description || '');
 	const { row: colorRow, input: color } = colorPickerRow('Cor', initial.color || '#3b82f6');
 	const content = el('div', {}, [
-		el('h3', {}, initial.id ? 'Editar quadro' : 'Novo quadro'),
+		el('h3', { class: 'card-title' }, initial.id ? 'Editar quadro' : 'Novo quadro'),
 		el('div', { class: 'row' }, [el('label', {}, 'Nome'), name]),
 		el('div', { class: 'row' }, [el('label', {}, 'Descrição'), description]),
 		colorRow,

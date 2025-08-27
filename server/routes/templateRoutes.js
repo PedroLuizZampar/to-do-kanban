@@ -7,6 +7,7 @@ const ctrl = require('../controllers/templateController');
 router.get('/', auth, ctrl.list);
 router.delete('/default', auth, ctrl.clearDefault);
 router.post('/:id/default', auth, ctrl.setDefault);
+router.post('/reorder', auth, ctrl.reorder);
 
 router.get('/:id', auth, ctrl.get);
 router.post('/', auth, ctrl.create);

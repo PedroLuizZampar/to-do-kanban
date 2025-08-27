@@ -165,6 +165,7 @@ CREATE TABLE tags (
   description TEXT NULL,
   color       VARCHAR(20) NULL,
   board_id    INTEGER NULL REFERENCES boards(id) ON DELETE CASCADE ON UPDATE CASCADE,
+  position    INTEGER NOT NULL DEFAULT 1,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT uq_tags_name_board UNIQUE (board_id, name)
@@ -240,6 +241,7 @@ CREATE TABLE templates (
   name        VARCHAR(150) NOT NULL,
   content     JSONB NOT NULL,
   is_default  BOOLEAN NOT NULL DEFAULT FALSE,
+  position    INTEGER NOT NULL DEFAULT 1,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );

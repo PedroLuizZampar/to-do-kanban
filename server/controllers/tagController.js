@@ -38,4 +38,13 @@ module.exports = {
 			res.status(204).end();
 		} catch (e) { next(e); }
 	},
+	async reorder(req, res, next) {
+		try {
+			const boardId = Number(req.body.boardId || req.query.boardId);
+			const order = req.body.order;
+			if (!boardId || !Array.isArray(order)) return res.status(400).json({ error: 'boardId e order[] são obrigatórios' });
+			const rows = await Tag.reorder(boardId, order.map(Number));
+			res.json(rows);
+		} catch (e) { next(e); }
+	},
 };

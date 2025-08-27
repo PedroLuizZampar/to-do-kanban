@@ -12,7 +12,7 @@ async function list(boardId) {
 	}
 	for (const t of tasks) {
 		t.tags = await db.query(
-			' SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tt.position ASC, tt.tag_id ASC',
+			' SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tt.position ASC, tg.id ASC',
 			[t.id]
 		);
 		// subtarefas
@@ -37,7 +37,7 @@ async function listByCategory(categoryId) {
 	const tasks = await db.query('SELECT * FROM tasks WHERE category_id = ? ORDER BY position ASC, id ASC', [categoryId]);
 	for (const t of tasks) {
 		t.tags = await db.query(
-			'SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tt.position ASC, tt.tag_id ASC',
+			'SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tt.position ASC, tg.id ASC',
 			[t.id]
 		);
 	}
@@ -49,7 +49,7 @@ async function get(id) {
 	if (!rows[0]) return null;
 	const task = rows[0];
 	task.tags = await db.query(
-		'SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tt.position ASC, tt.tag_id ASC',
+		'SELECT tg.* FROM tags tg INNER JOIN task_tags tt ON tt.tag_id = tg.id WHERE tt.task_id = ? ORDER BY tt.position ASC, tg.id ASC',
 		[id]
 	);
 	// subtarefas
