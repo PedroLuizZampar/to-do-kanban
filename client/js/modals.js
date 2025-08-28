@@ -284,8 +284,9 @@ async function taskForm(initial = {}) {
 	]);
 
 		// Campos de prazo para Template: Dias + Horas:Minutos
-		const tplDueDaysInput = el('input', { type: 'number', min: '0', step: '1', value: (initial.due_days ?? 0), style: 'flex: 0 0 auto;' });
-		const tplDueTimeInput = el('input', { type: 'time', value: (initial.due_hm ?? '00:00'), style: 'flex: 0 0 auto;' });
+		// Inicia vazio ao criar novo template; mantém valores ao editar
+		const tplDueDaysInput = el('input', { type: 'number', min: '0', step: '1', value: (initial.id ? (initial.due_days ?? '') : ''), placeholder: '0', style: 'flex: 0 0 auto;' });
+		const tplDueTimeInput = el('input', { type: 'time', value: (initial.id ? (initial.due_hm ?? '') : ''), placeholder: '00:00', style: 'flex: 0 0 auto;' });
 		const tplDueRow = el('div', { class: 'row' }, [
 			el('h5', { class: 'separator' }, 'Prazo'),
 			el('div', { style: 'display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;' }, [
@@ -885,17 +886,21 @@ async function taskForm(initial = {}) {
 						subtasks.length = 0; c.subtasks.forEach(s => subtasks.push({ title: s.title || String(s), done: !!s.done }));
 						renderChecklist();
 					}
-						// prazo a partir de dias + hh:mm do template
+						// prazo a partir de dias + hh:mm do template (aplica somente se ambos presentes)
 						try {
-							const days = c.due_days ?? 0;
-							const hm = c.due_hm ?? '00:00';
-							const dt = computeDueFromTemplate(days, hm);
-							if (dateInput && timeInput) {
-								if (typeof dt === 'string' && dt.includes('T')) {
+							const hasDays = c.due_days !== undefined && c.due_days !== null && String(c.due_days).trim() !== '';
+							const hasTime = typeof c.due_hm === 'string' && c.due_hm.trim() !== '';
+							if (hasDays && hasTime) {
+								const dt = computeDueFromTemplate(c.due_days, c.due_hm);
+								if (dateInput && timeInput && typeof dt === 'string' && dt.includes('T')) {
 									const [d, t] = dt.split('T');
 									dateInput.value = d;
 									timeInput.value = t;
 								}
+							} else {
+								// mantém em branco se não há dados de prazo no template
+								if (dateInput) dateInput.value = '';
+								if (timeInput) timeInput.value = '';
 							}
 						} catch {}
 				} catch {}
@@ -913,17 +918,20 @@ async function taskForm(initial = {}) {
 				descEditor.setValue(c.description || '');
 				if (Array.isArray(c.tags)) { selectedTagsOrder = c.tags.slice(); selectedTagsSet = new Set(selectedTagsOrder); renderBuckets(); } else { selectedTagsOrder = []; selectedTagsSet = new Set(); renderBuckets(); }
 				if (Array.isArray(c.subtasks)) { subtasks.length = 0; c.subtasks.forEach(s => subtasks.push({ title: s.title || String(s), done: !!s.done })); renderChecklist(); } else { subtasks.length = 0; renderChecklist(); }
-				// prazo padrão com base nas definições do template padrão
+				// prazo padrão com base nas definições do template padrão (aplica somente se ambos presentes)
 				try {
-					const days = c.due_days ?? 0;
-					const hm = c.due_hm ?? '00:00';
-					const dt = computeDueFromTemplate(days, hm);
-					if (dateInput && timeInput) {
-						if (typeof dt === 'string' && dt.includes('T')) {
+					const hasDays = c.due_days !== undefined && c.due_days !== null && String(c.due_days).trim() !== '';
+					const hasTime = typeof c.due_hm === 'string' && c.due_hm.trim() !== '';
+					if (hasDays && hasTime) {
+						const dt = computeDueFromTemplate(c.due_days, c.due_hm);
+						if (dateInput && timeInput && typeof dt === 'string' && dt.includes('T')) {
 							const [d, t] = dt.split('T');
 							dateInput.value = d;
 							timeInput.value = t;
 						}
+					} else {
+						if (dateInput) dateInput.value = '';
+						if (timeInput) timeInput.value = '';
 					}
 				} catch {}
 			} catch { /* ignora parse */ }
@@ -990,9 +998,12 @@ async function taskForm(initial = {}) {
 								title: payload.title,
 								description: payload.description,
 								tags: selectedTagsOrder.slice(),
-				subtasks: subtasks.map(s => ({ title: s.title, done: !!s.done })),
-				due_days: parseInt(tplDueDaysInput.value || '0', 10) || 0,
-				due_hm: (tplDueTimeInput.value || '00:00')
+					subtasks: subtasks.map(s => ({ title: s.title, done: !!s.done })),
+					// Salva apenas se preenchidos
+					...(tplDueDaysInput.value?.trim() && tplDueTimeInput.value?.trim() ? {
+						due_days: parseInt(tplDueDaysInput.value, 10) || 0,
+						due_hm: tplDueTimeInput.value
+					} : {})
 							};
 							const boardId = window.$utils.getBoardId();
 							const nameInput = tplNameInput;

@@ -2,6 +2,23 @@ const Board = (() => {
 	const board = document.getElementById('board');
 	const tplColumn = document.getElementById('tpl-column');
 	const tplCard = document.getElementById('tpl-card');
+	// Tipo de arrasto atual: 'card' | 'column' | null
+	let DND_KIND = null;
+
+	// Bloqueio global: evita que o browser insira texto (ex.: 'null') em qualquer área
+	try {
+		const preventOnly = (e) => { e.preventDefault(); };
+		document.addEventListener('dragenter', preventOnly, true);
+		document.addEventListener('dragover', preventOnly, true);
+		document.addEventListener('drop', preventOnly, true);
+	} catch {}
+
+	// Evita que o navegador insira texto ('null' etc.) ao soltar fora do board; dentro do board permitimos DnD
+	try {
+		const allowInside = (e) => { e.stopPropagation(); e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; };
+		board.addEventListener('dragover', allowInside);
+		board.addEventListener('drop', allowInside);
+	} catch {}
 
 	let state = { categories: [], tasks: [], tags: [] };
 
@@ -21,14 +38,26 @@ const Board = (() => {
 			$col.querySelector('.column-title').textContent = cat.name;
 			if (cat.color) $col.style.setProperty('--col', cat.color);
 			const cards = $col.querySelector('.cards');
-			cards.addEventListener('dragover', (e) => { e.preventDefault(); cards.classList.add('drag-over'); });
+			cards.addEventListener('dragover', (e) => { e.stopPropagation(); e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; cards.classList.add('drag-over'); });
 			cards.addEventListener('dragleave', () => cards.classList.remove('drag-over'));
 			cards.addEventListener('drop', async (e) => {
-				e.preventDefault();
+				e.stopPropagation(); e.preventDefault();
 				cards.classList.remove('drag-over');
 				const taskId = Number(e.dataTransfer.getData('text/plain'));
 				const afterId = getCardAfter(cards, e.clientY);
 				const toPosition = afterId ? positionAfter(cards, afterId) : tasksByCategory(cat.id).length + 1;
+				await api.post(`/api/tasks/${taskId}/move`, { toCategoryId: cat.id, toPosition });
+				await load();
+			});
+			// Permitir soltar em qualquer área da coluna (fora de .cards): move para o final
+			$col.addEventListener('dragover', (e) => { e.stopPropagation(); e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; });
+			$col.addEventListener('drop', async (e) => {
+				e.stopPropagation(); e.preventDefault();
+				// Se o alvo já for .cards, deixa o handler de .cards cuidar
+				if (e.target && e.target.closest && e.target.closest('.cards')) return;
+				const taskId = Number(e.dataTransfer.getData('text/plain'));
+				if (!taskId) return;
+				const toPosition = tasksByCategory(cat.id).length + 1;
 				await api.post(`/api/tasks/${taskId}/move`, { toCategoryId: cat.id, toPosition });
 				await load();
 			});
@@ -56,6 +85,16 @@ const Board = (() => {
 				const txtColor = window.$utils.getContrastTextColor(String(colColor).trim());
 				btnAdd.style.color = txtColor;
 			}
+			// Evita inserção de texto ao soltar sobre o botão e trata como soltar ao final da coluna
+			btnAdd.addEventListener('dragover', (e) => { e.stopPropagation(); e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; });
+			btnAdd.addEventListener('drop', async (e) => {
+				e.stopPropagation(); e.preventDefault();
+				const taskId = Number(e.dataTransfer.getData('text/plain'));
+				if (!taskId) return;
+				const toPosition = tasksByCategory(cat.id).length + 1;
+				await api.post(`/api/tasks/${taskId}/move`, { toCategoryId: cat.id, toPosition });
+				await load();
+			});
 
 			tasksByCategory(cat.id).forEach(t => cards.append(renderCard(t)));
 			board.append($col);
@@ -65,6 +104,9 @@ const Board = (() => {
 				el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'add'),
 				'Nova coluna'
 			]);
+		// Evitar qualquer drop sobre o tile de nova coluna
+	addTile.addEventListener('dragover', (e) => { e.stopPropagation(); e.preventDefault(); });
+	addTile.addEventListener('drop', (e) => { e.stopPropagation(); e.preventDefault(); });
 		board.append(addTile);
 
 		enableColumnDrag();
@@ -159,7 +201,8 @@ const Board = (() => {
 			avatarsWrap.append(more);
 		}
 		$card.insertBefore(avatarsWrap, $card.querySelector('.card-actions'));
-		$card.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', String(task.id)));
+		$card.addEventListener('dragstart', (e) => { DND_KIND = 'card'; e.dataTransfer.setData('text/plain', String(task.id)); });
+		$card.addEventListener('dragend', () => { DND_KIND = null; });
 		$card.querySelector('.btn-edit').addEventListener('click', async () => {
 			const fresh = state.tasks.find(x => x.id === task.id);
 			Modal.open(await taskForm(fresh));
@@ -199,9 +242,29 @@ const Board = (() => {
 			const header = col.querySelector('.column-header');
 			if (!header) return; // ignora tiles sem header
 			header.setAttribute('draggable', 'true');
-			header.addEventListener('dragstart', () => { dragSrc = col; col.classList.add('dragging'); });
+			header.addEventListener('dragstart', () => { DND_KIND = 'column'; dragSrc = col; col.classList.add('dragging'); });
+			// Quando arrastando cartão sobre o cabeçalho, impedir texto e permitir soltar (vai ao final da coluna)
+			header.addEventListener('dragover', (e) => {
+				if (DND_KIND === 'card') { e.stopPropagation(); e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = 'move'; }
+			});
+			header.addEventListener('drop', async (e) => {
+				if (DND_KIND === 'card') {
+					e.stopPropagation(); e.preventDefault();
+					const taskId = Number(e.dataTransfer.getData('text/plain'));
+					if (taskId) {
+						const catId = Number(col.dataset.categoryId);
+						const toPosition = tasksByCategory(catId).length + 1;
+						await api.post(`/api/tasks/${taskId}/move`, { toCategoryId: catId, toPosition });
+						await load();
+					}
+				} else {
+					// Durante DnD de colunas, evita inserção de texto no header
+					e.preventDefault();
+				}
+			});
 			header.addEventListener('dragend', async () => {
 				col.classList.remove('dragging');
+				DND_KIND = null;
 				const order = [...board.querySelectorAll('.column[data-category-id]')]
 					.map(c => Number(c.dataset.categoryId))
 					.filter(id => Number.isInteger(id) && id > 0);
