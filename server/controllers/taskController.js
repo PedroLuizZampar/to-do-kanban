@@ -11,25 +11,25 @@ module.exports = {
 	},
 		async create(req, res, next) {
 		try {
-			const { title, description, category_id } = req.body;
+				const { title, description, category_id, due_at } = req.body;
 				if (!title) return res.status(400).json({ error: 'title é obrigatório' });
 				if (!category_id) return res.status(400).json({ error: 'category_id é obrigatório' });
 			// check duplicate title within the category
 			const existing = await Task.listByCategory(Number(category_id));
 			if (existing.find(t => t.title.toLowerCase() === title.toLowerCase())) return res.status(409).json({ error: 'Já existe uma tarefa com esse título nesta coluna' });
-			const data = await Task.create({ title, description, category_id });
+				const data = await Task.create({ title, description, category_id, due_at });
 			res.status(201).json(data);
 		} catch (e) { next(e); }
 	},
-		async update(req, res, next) {
+			async update(req, res, next) {
 		try {
 			const id = Number(req.params.id);
-			const { title, description, category_id } = req.body;
+				const { title, description, category_id, due_at } = req.body;
 				if (!title) return res.status(400).json({ error: 'title é obrigatório' });
 				if (!category_id) return res.status(400).json({ error: 'category_id é obrigatório' });
 			const existing = await Task.listByCategory(Number(category_id));
 			if (existing.find(t => t.id !== id && t.title.toLowerCase() === title.toLowerCase())) return res.status(409).json({ error: 'Já existe uma tarefa com esse título nesta coluna' });
-			const data = await Task.update(id, { title, description, category_id });
+				const data = await Task.update(id, { title, description, category_id, due_at });
 			res.json(data);
 		} catch (e) { next(e); }
 	},

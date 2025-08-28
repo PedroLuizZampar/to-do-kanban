@@ -147,6 +147,7 @@ CREATE TABLE tasks (
   title       VARCHAR(200) NOT NULL,
   description TEXT NULL,
   category_id INTEGER NULL REFERENCES categories(id) ON DELETE SET NULL ON UPDATE CASCADE,
+  due_at      TIMESTAMPTZ NULL,
   position    INTEGER NOT NULL DEFAULT 1,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()

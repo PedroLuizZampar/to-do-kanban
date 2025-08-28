@@ -141,6 +141,16 @@ CREATE TABLE IF NOT EXISTS tasks (
 
 CREATE INDEX IF NOT EXISTS idx_tasks_category_position ON tasks(category_id, position);
 
+-- Adiciona coluna de prazo (due_at) se não existir
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'tasks' AND column_name = 'due_at'
+  ) THEN
+    ALTER TABLE tasks ADD COLUMN due_at TIMESTAMPTZ NULL;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS tags (
   id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   name        VARCHAR(100) NOT NULL,

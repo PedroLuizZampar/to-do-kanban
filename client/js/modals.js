@@ -154,7 +154,7 @@ function colorPickerRow(labelText, initialColor) {
 	});
 
 	const row = el('div', { class: 'row color-row' }, [
-		el('label', {}, labelText),
+		el('h5', { class: 'separator' }, labelText),
 		el('div', { class: 'color-field' }, [swatch, input, quick])
 	]);
 	return { row, input };
@@ -166,8 +166,8 @@ function categoryForm(initial = {}) {
 	const { row: colorRow, input: color } = colorPickerRow('Cor', initial.color || '#3b82f6');
 	const content = el('div', {}, [
 		el('h3', { class: 'card-title' }, initial.id ? 'Editar coluna' : 'Nova coluna'),
-		el('div', { class: 'row' }, [el('label', {}, 'Nome'), name]),
-		el('div', { class: 'row' }, [el('label', {}, 'Descrição'), description]),
+		el('div', { class: 'row' }, [el('h5', { class: 'separator' }, 'Nome'), name]),
+		el('div', { class: 'row' }, [el('h5', { class: 'separator' }, 'Descrição'), description]),
 		colorRow,
 		el('footer', {}, [
 					el('button', { class: 'btn-danger', onclick: Modal.close }, 'Cancelar'),
@@ -196,8 +196,8 @@ function tagForm(initial = {}) {
 	const { row: colorRow, input: color } = colorPickerRow('Cor', initial.color || '#172554');
 	const content = el('div', {}, [
 		el('h3', { class: 'card-title' }, initial.id ? 'Editar tag' : 'Nova tag'),
-		el('div', { class: 'row' }, [el('label', {}, 'Nome'), name]),
-		el('div', { class: 'row' }, [el('label', {}, 'Descrição'), description]),
+		el('div', { class: 'row' }, [el('h5', { class: 'separator' }, 'Nome'), name]),
+		el('div', { class: 'row' }, [el('h5', { class: 'separator' }, 'Descrição'), description]),
 		colorRow,
 		el('footer', {}, [
 					el('button', { class: 'btn-danger', onclick: Modal.close }, 'Cancelar'),
@@ -236,6 +236,84 @@ async function taskForm(initial = {}) {
 	let members = [];
 	try { members = await api.get(`/api/boards/${window.$utils.getBoardId()}/invite/users?mode=members`); } catch {}
 	const title = el('input', { value: initial.title || '', placeholder: 'Título' });
+
+	// Campos de prazo (data e hora separados)
+	function toLocalDatetimeValue(iso) {
+		try {
+			if (!iso) return '';
+			const d = new Date(iso);
+			const pad = (n) => String(n).padStart(2, '0');
+			const yyyy = d.getFullYear();
+			const mm = pad(d.getMonth() + 1);
+			const dd = pad(d.getDate());
+			const hh = pad(d.getHours());
+			const mi = pad(d.getMinutes());
+			return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+		} catch { return ''; }
+	}
+	function toLocalDateValue(iso) {
+		try {
+			if (!iso) return '';
+			const d = new Date(iso);
+			const pad = (n) => String(n).padStart(2, '0');
+			return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+		} catch { return ''; }
+	}
+	function toLocalTimeValue(iso) {
+		try {
+			if (!iso) return '';
+			const d = new Date(iso);
+			const pad = (n) => String(n).padStart(2, '0');
+			return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+		} catch { return ''; }
+	}
+	const dateInput = el('input', { type: 'date', value: toLocalDateValue(initial.due_at), style: 'flex: 0 0 auto;' });
+	const timeInput = el('input', { type: 'time', value: toLocalTimeValue(initial.due_at), style: 'flex: 0 0 auto;' });
+	const dueRow = el('div', { class: 'row' }, [
+		el('h5', { class: 'separator' }, 'Prazo'),
+		el('div', { style: 'display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;' }, [
+			el('div', { style: 'width: 48.2%; display:flex; flex-direction:column; gap:4px; flex:0 0 auto;' }, [
+				el('label', {}, 'Data'),
+				dateInput,
+			]),
+			el('div', { style: 'width: 48.2%; display:flex; flex-direction:column; gap:4px; flex:0 0 auto;' }, [
+				el('label', {}, 'Hora'),
+				timeInput,
+			]),
+		])
+	]);
+
+		// Campos de prazo para Template: Dias + Horas:Minutos
+		const tplDueDaysInput = el('input', { type: 'number', min: '0', step: '1', value: (initial.due_days ?? 0), style: 'flex: 0 0 auto;' });
+		const tplDueTimeInput = el('input', { type: 'time', value: (initial.due_hm ?? '00:00'), style: 'flex: 0 0 auto;' });
+		const tplDueRow = el('div', { class: 'row' }, [
+			el('h5', { class: 'separator' }, 'Prazo'),
+			el('div', { style: 'display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap;' }, [
+				el('div', { style: 'width: 48.2%; display:flex; flex-direction:column; gap:4px; flex:0 0 auto;' }, [
+					el('label', {}, 'Dias'),
+					tplDueDaysInput,
+				]),
+				el('div', { style: 'width: 48.2%; display:flex; flex-direction:column; gap:4px; flex:0 0 auto;' }, [
+					el('label', {}, 'Horas e Minutos'),
+					tplDueTimeInput,
+				]),
+			])
+		]);
+
+		function computeDueFromTemplate(days, hm) {
+			const d = parseInt(days || 0, 10) || 0;
+			let addMin = 0;
+			if (typeof hm === 'string' && hm.includes(':')) {
+				const [hStr, mStr] = hm.split(':');
+				const h = parseInt(hStr || '0', 10) || 0;
+				const m = parseInt(mStr || '0', 10) || 0;
+				addMin = h * 60 + m;
+			}
+			const now = new Date();
+			now.setDate(now.getDate() + d);
+			now.setMinutes(now.getMinutes() + addMin);
+			return toLocalDatetimeValue(now);
+		}
 
 	// Editor Markdown leve apenas para a descrição de cards
 	function escapeHtml(str) {
@@ -309,19 +387,22 @@ async function taskForm(initial = {}) {
 			ta.dispatchEvent(new Event('input'));
 		}
 		const tb = el('div', { class: 'md-toolbar' }, [
-			el('button', { title: 'Negrito (Ctrl+B)', onclick: (e) => { e.preventDefault(); wrapSelection('**', '**'); } }, 'B'),
-			el('button', { title: 'Itálico (Ctrl+I)', onclick: (e) => { e.preventDefault(); wrapSelection('*', '*'); } }, 'I'),
-			el('button', { title: 'Sublinhado', onclick: (e) => { e.preventDefault(); wrapSelection('++', '++'); } }, 'U'),
+			el('button', { title: 'Negrito (Ctrl+B)', onclick: (e) => { e.preventDefault(); wrapSelection('**', '**'); } }, [el('strong', {}, 'B')]),
+			el('button', { title: 'Itálico (Ctrl+I)', onclick: (e) => { e.preventDefault(); wrapSelection('*', '*'); } }, [el('em', {}, 'I')]),
+			el('button', { title: 'Sublinhado (Ctrl+U)', onclick: (e) => { e.preventDefault(); wrapSelection('++', '++'); } }, [el('u', {}, 'U')]),
+			el('button', { title: 'Tachado (Ctrl+S)', onclick: (e) => { e.preventDefault(); wrapSelection('~~', '~~'); } }, [el('del', {}, 'S')]),
 			el('span', { class: 'md-sep' }, '|'),
-			el('button', { title: 'Código inline', onclick: (e) => { e.preventDefault(); wrapSelection('`', '`'); } }, '</>'),
-			el('button', { title: 'Lista', onclick: (e) => { e.preventDefault(); prefixLines('-'); } }, '•'),
-			el('button', { title: 'Lista numerada', onclick: (e) => { e.preventDefault(); prefixLines('1.'); } }, '1.'),
-			el('button', { title: 'Link', onclick: (e) => { e.preventDefault(); wrapSelection('[', '](https://)'); } }, '🔗')
+			el('button', { title: 'Código inline', onclick: (e) => { e.preventDefault(); wrapSelection('`', '`'); } }, ['</>']),
+			el('button', { title: 'Lista', onclick: (e) => { e.preventDefault(); prefixLines('-'); } }, ['•']),
+			el('button', { title: 'Lista numerada', onclick: (e) => { e.preventDefault(); prefixLines('1.'); } }, ['1.']),
+			el('button', { title: 'Link', onclick: (e) => { e.preventDefault(); wrapSelection('[', '](https://)'); } }, ['🔗'])
 		]);
 		// atalhos simples
 		textarea.addEventListener('keydown', (e) => {
 			if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) { e.preventDefault(); wrapSelection('**', '**'); }
 			if (e.ctrlKey && (e.key === 'i' || e.key === 'I')) { e.preventDefault(); wrapSelection('*', '*'); }
+			if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); wrapSelection('++', '++'); }
+			if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); wrapSelection('~~', '~~'); }
 		});
 		return tb;
 	}
@@ -333,10 +414,21 @@ async function taskForm(initial = {}) {
 		const root = el('div', { class: 'md-editor' }, [toolbar, el('div', { class: 'md-panels' }, [el('div', { class: 'md-input' }, ta), preview])]);
 		function syncHeights() {
 			try {
-				// Define a altura da textarea igual à altura do preview
+				const isEditing = root.classList.contains('editing');
+				// Libera alturas para medir naturalmente
 				ta.style.height = 'auto';
-				const h = Math.max(preview.scrollHeight, 140);
-				ta.style.height = h + 'px';
+				preview.style.height = 'auto';
+				if (isEditing) {
+					// Em edição: igualar pela maior altura entre preview e textarea
+					const taH = Math.max(ta.scrollHeight || 0, 0);
+					const pvH = Math.max(preview.scrollHeight || 0, 0);
+					const h = Math.max(140, taH, pvH);
+					ta.style.height = h + 'px';
+					preview.style.height = h + 'px';
+				} else {
+					// Fora de edição: deixa preview seguir o conteúdo naturalmente
+					preview.style.height = 'auto';
+				}
 			} catch {}
 		}
 		// Garante sincronização após mudanças de layout (ex.: entrar no modo de edição)
@@ -767,9 +859,12 @@ async function taskForm(initial = {}) {
 			selectedTagsSet = new Set();
 			renderBuckets();
 			subtasks.length = 0; renderChecklist();
+			// limpar prazo
+			if (dateInput) dateInput.value = '';
+			if (timeInput) timeInput.value = '';
 		});
 		menu.append(none);
-		templates.forEach(t => {
+			templates.forEach(t => {
 			const item = el('button', { class: 'dropdown-item', type: 'button' }, t.name + (t.is_default ? ' (padrão)' : ''));
 			item.addEventListener('click', () => {
 				lbl.textContent = t.name;
@@ -790,6 +885,19 @@ async function taskForm(initial = {}) {
 						subtasks.length = 0; c.subtasks.forEach(s => subtasks.push({ title: s.title || String(s), done: !!s.done }));
 						renderChecklist();
 					}
+						// prazo a partir de dias + hh:mm do template
+						try {
+							const days = c.due_days ?? 0;
+							const hm = c.due_hm ?? '00:00';
+							const dt = computeDueFromTemplate(days, hm);
+							if (dateInput && timeInput) {
+								if (typeof dt === 'string' && dt.includes('T')) {
+									const [d, t] = dt.split('T');
+									dateInput.value = d;
+									timeInput.value = t;
+								}
+							}
+						} catch {}
 				} catch {}
 			});
 			menu.append(item);
@@ -805,6 +913,19 @@ async function taskForm(initial = {}) {
 				descEditor.setValue(c.description || '');
 				if (Array.isArray(c.tags)) { selectedTagsOrder = c.tags.slice(); selectedTagsSet = new Set(selectedTagsOrder); renderBuckets(); } else { selectedTagsOrder = []; selectedTagsSet = new Set(); renderBuckets(); }
 				if (Array.isArray(c.subtasks)) { subtasks.length = 0; c.subtasks.forEach(s => subtasks.push({ title: s.title || String(s), done: !!s.done })); renderChecklist(); } else { subtasks.length = 0; renderChecklist(); }
+				// prazo padrão com base nas definições do template padrão
+				try {
+					const days = c.due_days ?? 0;
+					const hm = c.due_hm ?? '00:00';
+					const dt = computeDueFromTemplate(days, hm);
+					if (dateInput && timeInput) {
+						if (typeof dt === 'string' && dt.includes('T')) {
+							const [d, t] = dt.split('T');
+							dateInput.value = d;
+							timeInput.value = t;
+						}
+					}
+				} catch {}
 			} catch { /* ignora parse */ }
 		}
 	}
@@ -813,9 +934,11 @@ async function taskForm(initial = {}) {
 	const tplNameInput = el('input', { value: initial.template_name || '', placeholder: 'Ex.: Bug padrão' });
 	const content = el('div', {}, [
 		el('h3', { class: 'card-title' }, isTemplateMode ? (initial.id ? 'Editar template' : 'Novo template') : (initial.id ? 'Editar tarefa' : 'Nova tarefa')),
-		isTemplateMode ? el('div', { class: 'row' }, [el('label', {}, 'Nome do template'), tplNameInput]) : (!initial.id ? templateSelectWrap : el('div', { class: 'row', style: 'display:none' })),
+		isTemplateMode ? el('div', { class: 'row' }, [el('h5', { class: 'separator' }, 'Nome do template'), tplNameInput]) : (!initial.id ? templateSelectWrap : el('div', { class: 'row', style: 'display:none' })),
 		el('div', { class: 'row' }, [el('h5', { class: 'separator' }, 'Título'), title]),
 		el('div', { class: 'row' }, [el('h5', { class: 'separator' }, 'Descrição'), descEditor.root]),
+		isTemplateMode ? tplDueRow : el('div', { class: 'row', style: 'display:none' }),
+		isTemplateMode ? el('div', { class: 'row', style: 'display:none' }) : dueRow,
 		isTemplateMode ? el('div', { class: 'row', style: 'display:none' }) : el('div', { class: 'row' }, [attachmentsSection()]),
 		// Linha com Coluna (80%) e Posição (20%) lado a lado
 		isTemplateMode ? el('div', { class: 'row', style: 'display:none' }) : el('div', { class: 'row', style: 'display:flex; gap:8px; align-items:flex-start;' }, [
@@ -848,16 +971,28 @@ async function taskForm(initial = {}) {
 					el('button', { onclick: async () => {
 						if (!title.value.trim()) { await alertModal({ title: 'Campo obrigatório', message: 'Título é obrigatório.' }); return; }
 						if (!isTemplateMode && (!chosenCatId || !cats.length)) { await alertModal({ title: 'Seleção necessária', message: 'Crie uma coluna antes de adicionar tarefas.' }); return; }
-					const payload = { title: title.value.trim(), description: descEditor.getValue().trim(), category_id: isTemplateMode ? null : Number(chosenCatId) };
+					// Monta due_at a partir de data e hora separados
+					let due_at_iso = null;
+					if (!isTemplateMode) {
+						const d = (dateInput.value || '').trim();
+						const t = (timeInput.value || '').trim();
+						if (d && t) {
+							const dtLocal = `${d}T${t}`; // interpretado como local
+							try { due_at_iso = new Date(dtLocal).toISOString(); } catch {}
+						}
+					}
+					const payload = { title: title.value.trim(), description: descEditor.getValue().trim(), category_id: isTemplateMode ? null : Number(chosenCatId), due_at: isTemplateMode ? null : due_at_iso };
 				try {
 						let saved;
-						if (isTemplateMode) {
+			if (isTemplateMode) {
 							// Salvar/atualizar template
 							const tplContent = {
 								title: payload.title,
 								description: payload.description,
 								tags: selectedTagsOrder.slice(),
-								subtasks: subtasks.map(s => ({ title: s.title, done: !!s.done }))
+				subtasks: subtasks.map(s => ({ title: s.title, done: !!s.done })),
+				due_days: parseInt(tplDueDaysInput.value || '0', 10) || 0,
+				due_hm: (tplDueTimeInput.value || '00:00')
 							};
 							const boardId = window.$utils.getBoardId();
 							const nameInput = tplNameInput;
@@ -890,7 +1025,11 @@ async function taskForm(initial = {}) {
 						}
 					}
 					for (const s of subtasks) {
-						if (s._temp) await api.post(`/api/tasks/${saved.id}/subtasks`, { title: s.title, done: !!s.done });
+						// Em nova tarefa: cria todas as subtarefas (inclui as vindas de template)
+						// Em edição: cria apenas as marcadas como temporárias
+						if (!initial.id || s._temp) {
+							await api.post(`/api/tasks/${saved.id}/subtasks`, { title: s.title, done: !!s.done });
+						}
 					}
 					// Upload de anexos pendentes (quando criar nova tarefa)
 					if (!initial.id && pendingFiles.length) {
@@ -1101,8 +1240,8 @@ function boardForm(initial = {}) {
 	const { row: colorRow, input: color } = colorPickerRow('Cor', initial.color || '#3b82f6');
 	const content = el('div', {}, [
 		el('h3', { class: 'card-title' }, initial.id ? 'Editar quadro' : 'Novo quadro'),
-		el('div', { class: 'row' }, [el('label', {}, 'Nome'), name]),
-		el('div', { class: 'row' }, [el('label', {}, 'Descrição'), description]),
+		el('div', { class: 'row' }, [el('h5', { class: 'separator' }, 'Nome'), name]),
+		el('div', { class: 'row' }, [el('h5', { class: 'separator' }, 'Descrição'), description]),
 		colorRow,
 		el('footer', {}, [
 			el('button', { class: 'btn-danger', onclick: Modal.close }, 'Cancelar'),

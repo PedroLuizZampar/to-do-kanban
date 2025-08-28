@@ -92,12 +92,10 @@ button.btn-ghost:hover { background: #f3f6fb; }
 .sidebar-head-left { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .sidebar .btn-icon { padding: 0; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; }
 .sidebar .btn-icon .material-symbols-outlined { font-size: 18px; }
-.boards-list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; padding-right: 4px; }
-.sidebar.collapsed .boards-list { padding-left: 6px; padding-right: 6px; }
-.board-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: #fff; cursor: pointer; box-shadow: var(--shadow); }
+.boards-list { background-color: transparent; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+.board-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: #fff; cursor: pointer; }
 .board-item:hover { background: #f8fafc; }
-.board-item.active { border-color: var(--board-color, var(--accent)); box-shadow: 0 0 0 2px rgba(59,130,246,.15), var(--shadow); }
-.boards-list { position: relative; }
+.board-item.active { border-color: var(--board-color, var(--accent)); }
 .board-item.dragging { opacity: .7; }
 .board-item .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-actions { flex-shrink: 0; }
@@ -125,7 +123,7 @@ button.btn-ghost:hover { background: #f3f6fb; }
 .sidebar.collapsed .boards-list .board-actions { display: none; }
 .sidebar.collapsed .board-item { padding-left: 8px; padding-right: 8px; }
 .sidebar.collapsed .board-item .title { justify-content: flex-start; gap: 0; }
-.sidebar.collapsed .boards-list { padding-right: 6px; }
+.sidebar.collapsed .boards-list { padding-left: 6px; padding-right: 6px; }
 
 /* Truncagem responsiva: já garantida por min-width:0 nos containers acima */
 
@@ -147,6 +145,12 @@ body { overscroll-behavior-x: none; }
 @keyframes pulse { from { background: #f8fbff; } to { background: #f0f7ff; } }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px; cursor: grab; box-shadow: var(--shadow); transition: transform .12s ease, box-shadow .2s ease; }
 .card:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(2, 6, 23, .12); }
+.card .card-title { margin-bottom: 6px; }
+.card-due { display:inline-flex; align-items:center; gap:6px; font-size:12px; margin-bottom: 6px; padding:4px 6px; border-radius:8px; border:1px solid var(--border); }
+.card-due .material-symbols-outlined { font-size:16px; }
+.card-due.on-time { background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }
+.card-due.due-soon { background:#fffbeb; color:#92400e; border-color:#fde68a; }
+.card-due.overdue { background:#fef2f2; color:#991b1b; border-color:#fecaca; }
 .card-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .card-progress { display:flex; align-items:center; gap:.5rem; margin-bottom:8px; }
 .card-progress-bar { height:6px; background:var(--border); border-radius:999px; position:relative; flex:1; overflow:hidden; }
@@ -305,8 +309,21 @@ body { overscroll-behavior-x: none; }
 
 /* Markdown editor */
 .md-editor { display: flex; flex-direction: column; gap: .5rem; }
-.md-toolbar { display: flex; align-items: center; gap: .25rem; }
-.md-toolbar button { color: #000; padding: .25rem .5rem; border: 1px solid var(--border); background: #f9fafb; border-radius: .375rem; cursor: pointer; }
+.md-toolbar { display: flex; align-items: center; gap: .3rem; }
+.md-toolbar button { 
+  color: #000; 
+  padding: .25rem .5rem; 
+  width: 36px; 
+  height: 36px; 
+  border: 1px solid var(--border); 
+  background: #f9fafb; 
+  border-radius: .375rem; 
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
 .md-toolbar button:hover { background: #f3f4f6; }
 .md-toolbar .md-sep { color: #9ca3af; padding: 0 .25rem; }
 .md-panels { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
@@ -325,7 +342,8 @@ body { overscroll-behavior-x: none; }
 
 /* Mostrar somente preview quando não estiver editando */
 .md-editor .md-toolbar, .md-editor .md-input { display: none; }
-.md-editor.editing .md-toolbar, .md-editor.editing .md-input { display: block; }
+.md-editor.editing .md-input { display: block; }
+.md-editor.editing .md-toolbar { display: flex; }
 .md-editor:not(.editing) .md-panels { grid-template-columns: 1fr; }
 
 /* Anexos */

@@ -66,18 +66,18 @@ async function get(id) {
 	return task;
 }
 
-async function create({ title, description, category_id }) {
+async function create({ title, description, category_id, due_at }) {
 	let position = 1;
 	if (category_id) {
 		const max = await db.query('SELECT COALESCE(MAX(position),0) AS maxp FROM tasks WHERE category_id = ?', [category_id]);
 		position = (max[0]?.maxp || 0) + 1;
 	}
-	const result = await db.query('INSERT INTO tasks (title, description, category_id, position) VALUES (?,?,?,?)', [title, description || null, category_id, position]);
+	const result = await db.query('INSERT INTO tasks (title, description, category_id, due_at, position) VALUES (?,?,?,?,?)', [title, description || null, category_id, due_at || null, position]);
 	return get(result.insertId);
 }
 
-async function update(id, { title, description, category_id }) {
-	await db.query('UPDATE tasks SET title = ?, description = ?, category_id = ? WHERE id = ?', [title, description || null, category_id, id]);
+async function update(id, { title, description, category_id, due_at }) {
+	await db.query('UPDATE tasks SET title = ?, description = ?, category_id = ?, due_at = ? WHERE id = ?', [title, description || null, category_id, due_at || null, id]);
 	return get(id);
 }
 

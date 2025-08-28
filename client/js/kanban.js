@@ -74,6 +74,42 @@ const Board = (() => {
 		const $card = tplCard.content.firstElementChild.cloneNode(true);
 		$card.dataset.taskId = task.id;
 		$card.querySelector('.card-title').textContent = task.title;
+		// Badge de prazo
+		if (task.due_at) {
+			const due = new Date(task.due_at);
+			const now = new Date();
+			const badge = document.createElement('div');
+			badge.className = 'card-due';
+			const icon = document.createElement('span');
+			icon.className = 'material-symbols-outlined';
+			icon.textContent = 'schedule';
+			const time = document.createElement('span');
+			time.className = 'card-due-text';
+			const fmt = (d) => {
+				try { return d.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }); } catch { return d.toISOString(); }
+			};
+			time.textContent = fmt(due);
+			badge.append(icon, time);
+			// status
+			let cls = 'on-time';
+			const dueMs = due.getTime();
+			const nowMs = now.getTime();
+			if (nowMs >= dueMs) {
+				cls = 'overdue';
+			} else {
+				// usa created_at como início do intervalo
+				const startDate = task.created_at ? new Date(task.created_at) : null;
+				if (startDate) {
+					const startMs = startDate.getTime();
+					if (isFinite(startMs) && startMs < dueMs) {
+						const threshold = startMs + 0.6 * (dueMs - startMs);
+						if (nowMs >= threshold) cls = 'due-soon';
+					}
+				}
+			}
+			badge.classList.add(cls);
+			$card.insertBefore(badge, $card.querySelector('.card-tags'));
+		}
 		// progresso de subtarefas
 		const progress = $card.querySelector('.card-progress');
 		const bar = $card.querySelector('.card-progress-bar');
