@@ -7,8 +7,7 @@
 	"scripts": {
 		"start": "node server/app.js",
 		"dev": "nodemon server/app.js",
-		"db:setup": "node server/utils/dbSetup.js",
-		"build": "echo 'No build step required for Node.js API'"
+		"db:setup": "node server/utils/dbSetup.js"
 	},
 	"dependencies": {
 		"bcryptjs": "^2.4.3",
