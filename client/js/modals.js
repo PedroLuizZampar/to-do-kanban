@@ -325,40 +325,48 @@ async function taskForm(initial = {}) {
 		if (!content) return '';
 		let s = escapeHtml(content);
 		
-		// Code blocks (```) multiline - DEVE VIR ANTES das formatações de cor
+		// PRIMEIRA FASE: Processar cores de fundo ANTES das outras formatações
+		// Formatação de cor de fundo para blocos de código: {bg:#color}```código```{/bg}
+		s = s.replace(/\{bg:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}```([\s\S]*?)```\{\/bg\}/g, '<pre style="background-color:$1; border:1px solid #ddd; border-radius:4px; padding:8px; margin:4px 0; overflow-x:auto;"><code>$2</code></pre>');
+		
+		// Formatação de cor de fundo para código inline: {bg:#color}`código`{/bg}
+		s = s.replace(/\{bg:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}`([^`]+)`\{\/bg\}/g, '<code style="background-color:$1; padding:1px 4px; border-radius:3px; font-family:monospace;">$2</code>');
+		
+		// SEGUNDA FASE: Processar formatações normais
+		// Code blocks (```) multiline - sem cor personalizada
 		s = s.replace(/```([\s\S]*?)```/g, (m, p1) => `<pre style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:8px; margin:4px 0; overflow-x:auto;"><code>${p1.replace(/\n/g,'<br>')}</code></pre>`);
 		
-		// Inline code `code` - DEVE VIR ANTES das formatações de cor
+		// Inline code `code` - sem cor personalizada
 		s = s.replace(/`([^`]+)`/g, '<code style="background:#f5f5f5; padding:1px 4px; border-radius:3px; font-family:monospace;">$1</code>');
 		
-		// Links [texto](url) - DEVE VIR ANTES das formatações de cor
+		// Links [texto](url)
 		s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#007bff; text-decoration:none; border-bottom:1px dotted #007bff;">$1</a>');
 		
-		// Formatação básica - DEVE VIR ANTES das formatações de cor
-		s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+		// Formatação básica
+		s = s.replace(/\*\*([^*]+)\*\*/g, '<strong style="font-weight:600;">$1</strong>');
 		s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 		s = s.replace(/\+\+([^+]+)\+\+/g, '<u>$1</u>');
 		s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
 		
-		// Formatação de cor de texto: {color:#ff0000}texto{/color} - Agora preserva formatação interna
+		// Formatação de fonte: {font:Arial}texto{/font}
+		s = s.replace(/\{font:([^}]+)\}([\s\S]*?)\{\/font\}/g, '<span style="font-family:$1">$2</span>');
+		
+		// Formatação de cor de texto: {color:#ff0000}texto{/color}
 		s = s.replace(/\{color:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}([\s\S]*?)\{\/color\}/g, '<span style="color:$1">$2</span>');
 		
-		// Formatação de cor de fundo: {bg:#ffff00}texto{/bg} - Suporte para código e preserva formatação interna
-		s = s.replace(/\{bg:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}(<pre[\s\S]*?<\/pre>)\{\/bg\}/g, (match, color, preBlock) => {
-			return preBlock.replace(/style="([^"]*)"/, `style="background-color:${color}; $1"`);
-		});
+		// Formatação de cor de fundo para texto normal: {bg:#ffff00}texto{/bg}
 		s = s.replace(/\{bg:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}([\s\S]*?)\{\/bg\}/g, '<span style="background-color:$1; padding:1px 3px; border-radius:2px;">$2</span>');
 		
 		// Alinhamento de texto: {align:center}texto{/align}
 		s = s.replace(/\{align:(left|center|right|justify)\}([\s\S]*?)\{\/align\}/g, '<div style="text-align:$1">$2</div>');
 		
 		// Headings com estilo melhorado
-		s = s.replace(/^######\s+(.*)$/gm, '<h6 style="color:#666; margin:8px 0 4px 0; font-size:0.85em;">$1</h6>');
-		s = s.replace(/^#####\s+(.*)$/gm, '<h5 style="color:#666; margin:8px 0 4px 0; font-size:0.9em;">$1</h5>');
-		s = s.replace(/^####\s+(.*)$/gm, '<h4 style="color:#555; margin:10px 0 5px 0; font-size:1em;">$1</h4>');
-		s = s.replace(/^###\s+(.*)$/gm, '<h3 style="color:#444; margin:12px 0 6px 0; font-size:1.1em;">$1</h3>');
-		s = s.replace(/^##\s+(.*)$/gm, '<h2 style="color:#333; margin:14px 0 7px 0; font-size:1.25em; border-bottom:1px solid #eee; padding-bottom:2px;">$1</h2>');
-		s = s.replace(/^#\s+(.*)$/gm, '<h1 style="color:#222; margin:16px 0 8px 0; font-size:1.4em; border-bottom:2px solid #ddd; padding-bottom:3px;">$1</h1>');
+		s = s.replace(/^######\s+(.*)$/gm, '<h6 style="color:#666; margin:8px 0 4px 0; font-size:0.85em; font-weight:500;">$1</h6>');
+		s = s.replace(/^#####\s+(.*)$/gm, '<h5 style="color:#666; margin:8px 0 4px 0; font-size:0.9em; font-weight:500;">$1</h5>');
+		s = s.replace(/^####\s+(.*)$/gm, '<h4 style="color:#555; margin:10px 0 5px 0; font-size:1em; font-weight:600;">$1</h4>');
+		s = s.replace(/^###\s+(.*)$/gm, '<h3 style="color:#444; margin:12px 0 6px 0; font-size:1.1em; font-weight:600;">$1</h3>');
+		s = s.replace(/^##\s+(.*)$/gm, '<h2 style="color:#333; margin:14px 0 7px 0; font-size:1.25em; font-weight:700; border-bottom:1px solid #eee; padding-bottom:2px;">$1</h2>');
+		s = s.replace(/^#\s+(.*)$/gm, '<h1 style="color:#222; margin:16px 0 8px 0; font-size:1.4em; font-weight:700; border-bottom:2px solid #ddd; padding-bottom:3px;">$1</h1>');
 		
 		// Listas não ordenadas melhoradas com alternância de bolinhas (pretas/brancas)
 		s = s.replace(/(^|\n)([ ]*[-*+]\s+.+(?:\n[ ]*[-*+]\s+.+)*)/gm, (match, prefix, listBlock) => {
@@ -546,6 +554,59 @@ async function taskForm(initial = {}) {
 		const bgColors = ['transparent', '#fff2cc', '#d5e8d4', '#dae8fc', '#f8cecc', '#e1d5e7',
 		                 '#ffd966', '#82b366', '#6c8ebf', '#b85450', '#9673a6', '#ffcc99'];
 		
+		// Lista de fontes
+		const fonts = [
+			{ name: 'Padrão', value: 'inherit' },
+			{ name: 'Arial', value: 'Arial, sans-serif' },
+			{ name: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
+			{ name: 'Times New Roman', value: 'Times New Roman, serif' },
+			{ name: 'Georgia', value: 'Georgia, serif' },
+			{ name: 'Courier New', value: 'Courier New, monospace' },
+			{ name: 'Verdana', value: 'Verdana, sans-serif' },
+			{ name: 'Trebuchet MS', value: 'Trebuchet MS, sans-serif' },
+			{ name: 'Comic Sans MS', value: 'Comic Sans MS, cursive' },
+			{ name: 'Impact', value: 'Impact, sans-serif' },
+			{ name: 'Palatino', value: 'Palatino, serif' },
+			{ name: 'Tahoma', value: 'Tahoma, sans-serif' }
+		];
+		
+		function createFontPicker(title) {
+			const btn = el('button', { 
+				class: 'toolbar-btn-dropdown',
+				title: title,
+				onclick: (e) => { e.preventDefault(); dropdown.classList.toggle('hidden'); }
+			}, [
+				el('span', { class: 'material-symbols-outlined' }, 'font_download'),
+				el('span', { class: 'dropdown-arrow' }, '▼')
+			]);
+			
+			const dropdown = el('div', { class: 'font-dropdown hidden' });
+			
+			fonts.forEach(font => {
+				const fontBtn = el('div', {
+					class: 'font-option',
+					style: `font-family: ${font.value}`,
+					onclick: (e) => {
+						e.preventDefault();
+						wrapSelection(`{font:${font.value}}`, '{/font}');
+						dropdown.classList.add('hidden');
+					}
+				}, font.name);
+				dropdown.appendChild(fontBtn);
+			});
+			
+			const wrapper = el('div', { class: 'dropdown-wrapper' }, [btn, dropdown]);
+			
+			// Fechar dropdown ao clicar fora
+			document.addEventListener('click', (e) => {
+				if (!wrapper.contains(e.target)) {
+					dropdown.classList.add('hidden');
+				}
+			});
+			
+			return wrapper;
+		}
+		
 		function createColorPicker(colorType, title, colorList) {
 			const btn = el('button', { 
 				class: 'toolbar-btn-dropdown',
@@ -640,7 +701,9 @@ async function taskForm(initial = {}) {
 				createColorPicker('color', 'Cor do texto', colors),
 				createColorPicker('bg', 'Cor de fundo', bgColors),
 				
-				el('span', { class: 'toolbar-sep' }, '|')
+				el('span', { class: 'toolbar-sep' }, '|'),
+				
+				createFontPicker('Selecionar fonte')
 			]),
 			
 			// Linha 2: Alinhamento e listas

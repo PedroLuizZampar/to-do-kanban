@@ -1,113 +1,167 @@
-## Armazenamento de Avatares (PostgreSQL)
+# 📋 Kanban de Tarefas
 
-Os avatares de usuário agora são armazenados no banco (colunas `users.avatar_blob` e `users.avatar_mime`).
+Sistema Kanban completo com interface moderna e funcionalidades avançadas. Desenvolvido com Node.js, Express, PostgreSQL e frontend vanilla JavaScript.
 
-- Upload: `POST /api/profile/avatar` (autenticado). O arquivo é enviado como `multipart/form-data` com o campo `avatar`.
-- Remoção: `DELETE /api/profile/avatar`.
-- Exibição: `GET /api/users/:id/avatar` (pública). O cliente usa `user.avatar_url` que aponta para esse endpoint.
+## ✨ Funcionalidades Principais
 
-As migrações idempotentes adicionam as novas colunas automaticamente sem perder dados existentes.
-# Kanban de Tarefas (Node.js + PostgreSQL + HTML/CSS/JS)
+### 🔐 Sistema de Autenticação
+- **Registro e Login** com criptografia bcrypt
+- **Sistema de sessões** com middleware de autenticação
+- **Perfis de usuário** com upload de avatar
+- **Compartilhamento de quadros** entre usuários
 
-Aplicação Kanban com backend em Node.js/Express e banco PostgreSQL, e frontend leve em HTML/CSS/JS (sem framework). Suporta:
+### 📋 Gestão de Quadros e Tarefas
+- **Múltiplos quadros** por usuário com controle de acesso
+- **Colunas personalizáveis** com cores e descrições
+- **Tarefas** com sistema completo de CRUD
+- **Sistema de tags** com cores e gerenciamento
+- **Subtarefas** com checklist e progresso visual
+- **Anexos** com upload de imagens e arquivos
 
-- CRUD de Categorias (colunas) com ordenação arrastável e persistida
-- CRUD de Tags, com cor e descrição
-- CRUD de Tarefas, com título, descrição, coluna e múltiplas tags
-- Arrastar cartões entre colunas e reordenar colunas (persistindo no banco)
+### ⏰ Sistema de Prazos
+- **Prazos com data e hora** para tarefas
+- **Indicadores visuais** de status:
+  - 🟢 **Verde**: No prazo
+  - 🟡 **Amarelo**: Próximo do vencimento (60% do tempo decorrido)
+  - 🔴 **Vermelho**: Atrasado
+- **Templates com prazos automáticos** (dias + horas/minutos)
 
-## Requisitos
+### 📝 Editor de Texto Rico
+- **Formatação avançada** com toolbar profissional
+- **Cores personalizáveis** para texto e fundo
+- **Seletor de fontes** (Arial, Times New Roman, Georgia, etc.)
+- **Código** com syntax highlighting e backgrounds coloridos
+- **Alinhamento** (esquerda, centro, direita, justificado)
+- **Listas inteligentes** com numeração hierárquica (1.1.1, 1.1.2)
+- **Links** que abrem em nova aba
+- **Preview em tempo real** lado a lado
 
+### 🎨 Interface e UX
+- **Drag & Drop** para reordenação de colunas e tarefas
+- **Design responsivo** e moderno
+- **Atalhos de teclado** (Alt+N, Alt+C, Alt+T, etc.)
+- **Modais empilháveis** com navegação intuitiva
+- **Indicadores de progresso** em subtarefas
+- **Sistema de notificações** e convites
+
+### 🗂️ Templates
+- **Templates de tarefas** para agilizar criação
+- **Subtarefas automáticas** a partir de templates
+- **Prazos calculados automaticamente** baseados em dias e horas
+- **Reutilização** de estruturas de tarefas comuns
+
+## 🚀 Tecnologias
+
+- **Backend**: Node.js, Express.js
+- **Banco de Dados**: PostgreSQL com migrações automáticas
+- **Frontend**: HTML5, CSS3, JavaScript vanilla
+- **Autenticação**: bcrypt, express-session
+- **Upload**: Multer para arquivos e avatares
+- **Comunicação**: RESTful API
+
+## 📦 Instalação
+
+### Pré-requisitos
 - Node.js 18+
 - PostgreSQL 13+
 
-## Configuração
+### Configuração Rápida
 
-1. Instale dependências:
+1. **Clone o repositório**:
+   ```bash
+   git clone https://github.com/PedroLuizZampar/to-do-kanban.git
+   cd to-do-kanban
+   ```
 
-	- Windows PowerShell:
-	```powershell
-	npm install
-	```
+2. **Instale dependências**:
+   ```bash
+   npm install
+   ```
 
-2. Configure variáveis de ambiente (opcional). Por padrão:
+3. **Configure o banco** (opcional - crie `.env`):
+   ```env
+   DB_HOST=localhost
+   DB_USER=postgres
+   DB_PASSWORD=sua_senha
+   DB_NAME=kanban
+   DB_PORT=5432
+   PORT=3000
+   ```
 
-	- DB_HOST=localhost
-	- DB_USER=postgres
-	- DB_PASSWORD=(vazio)
-	- DB_NAME=kanban
-	- DB_PORT=5432
-	- DB_SSL=false
+4. **Execute setup automático**:
+   ```bash
+   npm run db:setup
+   ```
 
-	Crie um arquivo `.env` na raiz se quiser sobrescrever:
+5. **Inicie a aplicação**:
+   ```bash
+   npm start
+   ```
 
-	```ini
-	DB_HOST=localhost
-	DB_USER=seu_usuario
-	DB_PASSWORD=sua_senha
-	DB_NAME=kanban
-	DB_PORT=5432
-	DB_SSL=false
-	PORT=3000
-	```
+6. **Acesse**: http://localhost:3000
 
-3. Crie o banco e aplique o schema/seed:
-
-	```powershell
-	npm run db:setup
-	```
-
-4. Inicie a aplicação:
-
-	- Modo normal:
-	  ```powershell
-	  npm start
-	  ```
-	- Modo dev (com nodemon):
-	  ```powershell
-	  npm run dev
-	  ```
-
-5. Acesse o frontend:
-
-	- http://localhost:3000/
-
-### Instalação automática (opcional)
-
-No Windows PowerShell, você pode usar o script:
-
+### Instalação Automática (Windows)
 ```powershell
-./scripts/install.ps1          # instala dependências, aplica schema e inicia
-./scripts/install.ps1 -Dev     # inicia em modo dev (nodemon)
+./scripts/install.ps1          # Produção
+./scripts/install.ps1 -Dev     # Desenvolvimento
 ```
 
-O script usa `npm ci` (se existir package-lock.json) ou `npm install`, e executa `npm run db:setup`.
+## 🎯 Como Usar
 
-## Estrutura
+### Primeiros Passos
+1. **Crie uma conta** ou faça login
+2. **Crie seu primeiro quadro** 
+3. **Adicione colunas** (A Fazer, Em Progresso, Concluído)
+4. **Crie tarefas** com descrições ricas e prazos
+5. **Arraste e solte** para organizar
 
-- `server/` Express, rotas, controladores e modelos (acesso PostgreSQL via pg Pool).
-- `database/schema.postgres.sql` Schema e seeds iniciais para PostgreSQL.
-- `scripts/install.ps1` Script para instalar e subir tudo automaticamente no Windows.
-- `requirements-node.txt` Lista textual das dependências (documentação).
-- `.gitignore` Ignora node_modules, .env e artefatos locais.
+### Editor de Texto Rico
+O editor suporta formatação avançada:
 
-## Funcionamento do site
+- **Negrito**: `**texto**` ou botão B
+- **Itálico**: `*texto*` ou botão I  
+- **Cores**: Use os seletores de cor ou `{color:#ff0000}texto{/color}`
+- **Fontes**: Selecione no dropdown ou `{font:Arial}texto{/font}`
+- **Código**: Use ``` para blocos ou ` para inline
+- **Listas**: Numeração automática inteligente com recuo
 
-- Sidebar com Quadros (Boards):
-	- Criar/editar/excluir e reordenar quadros por arraste. O ativo usa a cor do quadro na borda/outline.
-- Colunas (Categorias) por quadro, com cor e descrição:
-	- Ordenação por arraste com persistência. Edição/exclusão por menu da coluna.
-- Cartões (Tarefas):
-	- Criar/editar/excluir, mover entre colunas por arraste, reordenar dentro da coluna.
-	- Tags com cor (UI de “buckets” Disponíveis/Adicionadas).
-	- Checklist de subtarefas no modal da tarefa (criar/editar/checkbox; progresso exibido no card como done/total).
-- Modais empilháveis: ao fechar um modal filho (ex.: nova tag), o pai retoma e atualiza conteúdo.
-- Ajuda/Atalhos: Alt+N (nova tarefa), Alt+C (nova coluna), Alt+T (tags), Alt+Q (novo quadro), Alt+H (ajuda).
+### Prazos e Templates
+- **Defina prazos** com data e hora específicas
+- **Crie templates** com prazos automáticos (ex: +3 dias, +2 horas)
+- **Acompanhe status** pelos indicadores coloridos nos cartões
 
-## Notas
+## 🔧 Estrutura do Projeto
 
-- Suporte a múltiplos Quadros (Boards). Há um seletor no topo do app para alternar o quadro atual.
-- Endpoints aceitam filtro `?boardId=ID` (categories, tags e tasks). O frontend já envia automaticamente com base no quadro selecionado.
-- Excluir um Board remove suas categorias, tarefas e tags em cascata.
-- Arrastar cartões entre colunas, reordenar colunas e reordenar quadros persiste a posição no banco.
-- O banco é acessado via pool de conexões, configurado em `server/config/database.js`.
+```
+to-do-kanban/
+├── server/
+│   ├── controllers/     # Lógica de negócio
+│   ├── models/         # Acesso ao banco
+│   ├── routes/         # Rotas da API
+│   ├── middleware/     # Autenticação
+│   └── utils/          # Utilitários
+├── client/
+│   ├── js/            # JavaScript frontend
+│   ├── css/           # Estilos
+│   └── *.html         # Páginas
+├── database/
+│   ├── schema.postgres.sql    # Schema do banco
+│   └── migrations.postgres.sql # Migrações
+└── scripts/           # Scripts de instalação
+```
+
+## 🤝 Contribuição
+
+1. Fork o projeto
+2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
+3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Push para a branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## 📄 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para detalhes.
+
+---
+
+**Desenvolvido por [Pedro Luiz Zampar](http://github.com/PedroLuizZampar)**
