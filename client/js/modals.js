@@ -316,52 +316,156 @@ async function taskForm(initial = {}) {
 			return toLocalDatetimeValue(now);
 		}
 
-	// Editor Markdown leve apenas para a descrição de cards
+	// Editor de texto rico com formatação avançada
 	function escapeHtml(str) {
 		return (str || '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch]));
 	}
-	function mdToHtml(md) {
-		if (!md) return '';
-		let s = escapeHtml(md);
-		// code blocks (```) multiline
-		s = s.replace(/```([\s\S]*?)```/g, (m, p1) => `<pre><code>${p1.replace(/\n/g,'<br>')}</code></pre>`);
-		// inline code `code`
-		s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
-		// headings
-		s = s.replace(/^######\s+(.*)$/gm, '<h6>$1</h6>');
-		s = s.replace(/^#####\s+(.*)$/gm, '<h5>$1</h5>');
-		s = s.replace(/^####\s+(.*)$/gm, '<h4>$1</h4>');
-		s = s.replace(/^###\s+(.*)$/gm, '<h3>$1</h3>');
-		s = s.replace(/^##\s+(.*)$/gm, '<h2>$1</h2>');
-		s = s.replace(/^#\s+(.*)$/gm, '<h1>$1</h1>');
-		// bold **text**
+	
+	function richTextToHtml(content) {
+		if (!content) return '';
+		let s = escapeHtml(content);
+		
+		// Code blocks (```) multiline - DEVE VIR ANTES das formatações de cor
+		s = s.replace(/```([\s\S]*?)```/g, (m, p1) => `<pre style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:8px; margin:4px 0; overflow-x:auto;"><code>${p1.replace(/\n/g,'<br>')}</code></pre>`);
+		
+		// Inline code `code` - DEVE VIR ANTES das formatações de cor
+		s = s.replace(/`([^`]+)`/g, '<code style="background:#f5f5f5; padding:1px 4px; border-radius:3px; font-family:monospace;">$1</code>');
+		
+		// Links [texto](url) - DEVE VIR ANTES das formatações de cor
+		s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#007bff; text-decoration:none; border-bottom:1px dotted #007bff;">$1</a>');
+		
+		// Formatação básica - DEVE VIR ANTES das formatações de cor
 		s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-		// italic *text* or _text_
-		s = s.replace(/(^|\W)\*([^*]+)\*(?=\W|$)/g, '$1<em>$2</em>');
-		s = s.replace(/(^|\W)_([^_]+)_(?=\W|$)/g, '$1<em>$2</em>');
-		// underline ++text++ (custom)
+		s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
 		s = s.replace(/\+\+([^+]+)\+\+/g, '<u>$1</u>');
-		// strikethrough ~~text~~
 		s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-		// links [text](url)
-		s = s.replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1<\/a>');
-		// unordered lists
-		s = s.replace(/(^|\n)(?:-\s+.+(?:\n|$))+?/g, (block) => {
-			const items = block.trim().split(/\n/).map(l => l.replace(/^[-*]\s+/, '').trim()).filter(Boolean);
-			if (items.length <= 1) return block; return '\n<ul>' + items.map(i => `<li>${i}</li>`).join('') + '</ul>\n';
+		
+		// Formatação de cor de texto: {color:#ff0000}texto{/color} - Agora preserva formatação interna
+		s = s.replace(/\{color:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}([\s\S]*?)\{\/color\}/g, '<span style="color:$1">$2</span>');
+		
+		// Formatação de cor de fundo: {bg:#ffff00}texto{/bg} - Suporte para código e preserva formatação interna
+		s = s.replace(/\{bg:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}(<pre[\s\S]*?<\/pre>)\{\/bg\}/g, (match, color, preBlock) => {
+			return preBlock.replace(/style="([^"]*)"/, `style="background-color:${color}; $1"`);
 		});
-		// ordered lists
-		s = s.replace(/(^|\n)(?:\d+\.\s+.+(?:\n|$))+?/g, (block) => {
-			const items = block.trim().split(/\n/).map(l => l.replace(/^\d+\.\s+/, '').trim()).filter(Boolean);
-			if (items.length <= 1) return block; return '\n<ol>' + items.map(i => `<li>${i}</li>`).join('') + '</ol>\n';
+		s = s.replace(/\{bg:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}([\s\S]*?)\{\/bg\}/g, '<span style="background-color:$1; padding:1px 3px; border-radius:2px;">$2</span>');
+		
+		// Alinhamento de texto: {align:center}texto{/align}
+		s = s.replace(/\{align:(left|center|right|justify)\}([\s\S]*?)\{\/align\}/g, '<div style="text-align:$1">$2</div>');
+		
+		// Headings com estilo melhorado
+		s = s.replace(/^######\s+(.*)$/gm, '<h6 style="color:#666; margin:8px 0 4px 0; font-size:0.85em;">$1</h6>');
+		s = s.replace(/^#####\s+(.*)$/gm, '<h5 style="color:#666; margin:8px 0 4px 0; font-size:0.9em;">$1</h5>');
+		s = s.replace(/^####\s+(.*)$/gm, '<h4 style="color:#555; margin:10px 0 5px 0; font-size:1em;">$1</h4>');
+		s = s.replace(/^###\s+(.*)$/gm, '<h3 style="color:#444; margin:12px 0 6px 0; font-size:1.1em;">$1</h3>');
+		s = s.replace(/^##\s+(.*)$/gm, '<h2 style="color:#333; margin:14px 0 7px 0; font-size:1.25em; border-bottom:1px solid #eee; padding-bottom:2px;">$1</h2>');
+		s = s.replace(/^#\s+(.*)$/gm, '<h1 style="color:#222; margin:16px 0 8px 0; font-size:1.4em; border-bottom:2px solid #ddd; padding-bottom:3px;">$1</h1>');
+		
+		// Listas não ordenadas melhoradas com alternância de bolinhas (pretas/brancas)
+		s = s.replace(/(^|\n)([ ]*[-*+]\s+.+(?:\n[ ]*[-*+]\s+.+)*)/gm, (match, prefix, listBlock) => {
+			const lines = listBlock.split('\n').filter(l => l.trim());
+			let html = prefix + '<ul style="margin:4px 0; padding-left:20px; list-style-type:disc;">';
+			let currentLevel = 0;
+			
+			for (const line of lines) {
+				const indent = (line.match(/^[ ]*/)[0] || '').length;
+				const level = Math.floor(indent / 2);
+				const text = line.replace(/^[ ]*[-*+]\s+/, '').trim();
+				
+				if (level > currentLevel) {
+					for (let i = currentLevel; i < level; i++) {
+						// Alterna entre disc (bolinha preta) e circle (bolinha branca)
+						// Nível 0: disc (preto), Nível 1: circle (branco), Nível 2: disc (preto), etc.
+						const listStyle = (i + 1) % 2 === 1 ? 'circle' : 'disc';
+						html += `<ul style="margin:2px 0; padding-left:16px; list-style-type:${listStyle};">`;
+					}
+				} else if (level < currentLevel) {
+					for (let i = currentLevel; i > level; i--) {
+						html += '</ul>';
+					}
+				}
+				
+				html += `<li style="margin:2px 0; line-height:1.3;">${text}</li>`;
+				currentLevel = level;
+			}
+			
+			for (let i = currentLevel; i >= 0; i--) {
+				html += '</ul>';
+			}
+			
+			return html;
 		});
-		// line breaks
+		
+		// Listas ordenadas melhoradas com numeração inteligente multinível (1.1.1, 1.1.2, etc.)
+		s = s.replace(/(^|\n)([ ]*\d+\.\s+.+(?:\n[ ]*\d+\.\s+.+)*)/gm, (match, prefix, listBlock) => {
+			const lines = listBlock.split('\n').filter(l => l.trim());
+			let html = prefix + '<ol style="margin:4px 0; padding-left:30px; list-style-type:none;">';
+			let currentLevel = 0;
+			let counters = [0]; // Contadores por nível
+			
+			for (const line of lines) {
+				const indent = (line.match(/^[ ]*/)[0] || '').length;
+				const level = Math.floor(indent / 2);
+				const text = line.replace(/^[ ]*\d+\.\s+/, '').trim();
+				
+				// Ajusta array de contadores conforme o nível
+				while (counters.length <= level) {
+					counters.push(0);
+				}
+				
+				// Gerencia transições de nível
+				if (level > currentLevel) {
+					// Subindo de nível - abre novas listas
+					for (let i = currentLevel; i < level; i++) {
+						html += `<ol style="margin:2px 0; padding-left:30px; list-style-type:none;">`;
+					}
+				} else if (level < currentLevel) {
+					// Descendo de nível - fecha listas e reseta contadores
+					for (let i = currentLevel; i > level; i--) {
+						html += '</ol>';
+						if (i < counters.length) {
+							counters[i] = 0; // Reset contador do nível abandonado
+						}
+					}
+				}
+				
+				// Incrementa contador do nível atual
+				counters[level]++;
+				
+				// Gera numeração hierárquica completa (ex: 1.2.3)
+				let hierarchicalNumber = '';
+				for (let i = 0; i <= level; i++) {
+					if (i === 0) {
+						hierarchicalNumber = counters[i].toString();
+					} else {
+						hierarchicalNumber += '.' + counters[i];
+					}
+				}
+				
+				// Aplica numeração customizada com recuo proporcional ao nível
+				html += `<li style="margin:2px 0; line-height:1.3; position:relative; list-style:none;">`;
+				html += `<span style="position:absolute; left:-25px; font-weight:500; color:#666; min-width:20px; text-align:right;">${hierarchicalNumber}.</span>`;
+				html += `${text}</li>`;
+				
+				currentLevel = level;
+			}
+			
+			// Fecha todas as listas abertas
+			for (let i = currentLevel; i >= 0; i--) {
+				html += '</ol>';
+			}
+			
+			return html;
+		});
+		
+		// Line breaks
 		s = s.replace(/\n/g, '<br>');
-		// remove <br> imediatamente após headings (h1..h6)
-		s = s.replace(/<\/h([1-6])><br>/g, '</h$1>');
+		
+		// Remove <br> após headings e divs
+		s = s.replace(/<\/(h[1-6]|div)><br>/g, '</$1>');
+		
 		return s;
 	}
-	function createMdToolbar(textarea, preview) {
+	function createRichTextToolbar(textarea, preview) {
 		function wrapSelection(start, end = start) {
 			const ta = textarea;
 			const { selectionStart, selectionEnd, value } = ta;
@@ -374,68 +478,336 @@ async function taskForm(initial = {}) {
 			ta.setSelectionRange(pos, pos);
 			ta.dispatchEvent(new Event('input'));
 		}
-		function prefixLines(prefix) {
+		
+		function wrapSelectionWithColor(colorType, color) {
+			wrapSelection(`{${colorType}:${color}}`, `{/${colorType}}`);
+		}
+		
+		function wrapSelectionWithAlign(alignment) {
 			const ta = textarea;
 			const { selectionStart, selectionEnd, value } = ta;
 			const startLine = value.lastIndexOf('\n', selectionStart - 1) + 1;
 			const endLine = value.indexOf('\n', selectionEnd);
 			const endPos = endLine === -1 ? value.length : endLine;
-			const block = value.slice(startLine, endPos);
-			const out = block.split('\n').map(l => l ? (prefix + ' ' + l) : l).join('\n');
-			ta.value = value.slice(0, startLine) + out + value.slice(endPos);
+			const selectedText = value.slice(startLine, endPos);
+			
+			const newText = `{align:${alignment}}${selectedText}{/align}`;
+			ta.value = value.slice(0, startLine) + newText + value.slice(endPos);
 			ta.focus();
-			ta.setSelectionRange(startLine, startLine + out.length);
+			ta.setSelectionRange(startLine, startLine + newText.length);
 			ta.dispatchEvent(new Event('input'));
 		}
-		const tb = el('div', { class: 'md-toolbar' }, [
-			el('button', { title: 'Negrito (Ctrl+B)', onclick: (e) => { e.preventDefault(); wrapSelection('**', '**'); } }, [el('strong', {}, 'B')]),
-			el('button', { title: 'Itálico (Ctrl+I)', onclick: (e) => { e.preventDefault(); wrapSelection('*', '*'); } }, [el('em', {}, 'I')]),
-			el('button', { title: 'Sublinhado (Ctrl+U)', onclick: (e) => { e.preventDefault(); wrapSelection('++', '++'); } }, [el('u', {}, 'U')]),
-			el('button', { title: 'Tachado (Ctrl+S)', onclick: (e) => { e.preventDefault(); wrapSelection('~~', '~~'); } }, [el('del', {}, 'S')]),
-			el('span', { class: 'md-sep' }, '|'),
-			el('button', { title: 'Código inline', onclick: (e) => { e.preventDefault(); wrapSelection('`', '`'); } }, ['</>']),
-			el('button', { title: 'Lista', onclick: (e) => { e.preventDefault(); prefixLines('-'); } }, ['•']),
-			el('button', { title: 'Lista numerada', onclick: (e) => { e.preventDefault(); prefixLines('1.'); } }, ['1.']),
-			el('button', { title: 'Link', onclick: (e) => { e.preventDefault(); wrapSelection('[', '](https://)'); } }, ['🔗'])
+		
+		function insertSmartList(type) {
+			const ta = textarea;
+			const { selectionStart, selectionEnd, value } = ta;
+			const before = value.slice(0, selectionStart);
+			const selected = value.slice(selectionStart, selectionEnd);
+			const after = value.slice(selectionEnd);
+			
+			if (selected.trim()) {
+				// Se há texto selecionado, converte cada linha em item de lista
+				const lines = selected.split('\n').filter(l => l.trim());
+				let result = '';
+				for (let i = 0; i < lines.length; i++) {
+					const line = lines[i].trim();
+					if (type === 'ul') {
+						result += `- ${line}\n`;
+					} else {
+						result += `${i + 1}. ${line}\n`;
+					}
+				}
+				ta.value = before + result + after;
+				ta.setSelectionRange(selectionStart, selectionStart + result.length);
+			} else {
+				// Se não há seleção, adiciona novo item de lista
+				const currentLine = value.lastIndexOf('\n', selectionStart - 1) + 1;
+				const lineContent = value.slice(currentLine, selectionStart);
+				const prefix = type === 'ul' ? '- ' : '1. ';
+				
+				if (lineContent.trim() === '') {
+					ta.value = before + prefix + after;
+					ta.setSelectionRange(selectionStart + prefix.length, selectionStart + prefix.length);
+				} else {
+					ta.value = before + '\n' + prefix + after;
+					ta.setSelectionRange(selectionStart + 1 + prefix.length, selectionStart + 1 + prefix.length);
+				}
+			}
+			ta.focus();
+			ta.dispatchEvent(new Event('input'));
+		}
+		
+		// Paleta de cores
+		const colors = ['#000000', '#333333', '#666666', '#999999', '#cccccc', '#ffffff', 
+		               '#ff0000', '#ff6600', '#ffaa00', '#ffdd00', '#88dd00', '#00dd00',
+		               '#00ddaa', '#00aadd', '#0066dd', '#0000dd', '#6600dd', '#dd00dd',
+		               '#dd0066', '#ffeeff', '#ffe0e0', '#fff5e0', '#ffffcc', '#f0fff0'];
+		
+		const bgColors = ['transparent', '#fff2cc', '#d5e8d4', '#dae8fc', '#f8cecc', '#e1d5e7',
+		                 '#ffd966', '#82b366', '#6c8ebf', '#b85450', '#9673a6', '#ffcc99'];
+		
+		function createColorPicker(colorType, title, colorList) {
+			const btn = el('button', { 
+				class: 'toolbar-btn-dropdown',
+				title: title,
+				onclick: (e) => { e.preventDefault(); dropdown.classList.toggle('hidden'); }
+			}, [
+				el('span', { class: 'material-symbols-outlined' }, colorType === 'color' ? 'format_color_text' : 'format_color_fill'),
+				el('span', { class: 'material-symbols-outlined dropdown-arrow' }, 'expand_more')
+			]);
+			
+			const customColorInput = el('input', {
+				type: 'color',
+				title: 'Cor personalizada',
+				style: 'width: 40px; height: 20px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; margin: 4px;',
+				onchange: (e) => {
+					const color = e.target.value;
+					if (colorType === 'color') {
+						wrapSelection(`{color:${color}}`, '{/color}');
+					} else {
+						wrapSelection(`{bg:${color}}`, '{/bg}');
+					}
+					dropdown.classList.add('hidden');
+				}
+			});
+			
+			const dropdown = el('div', { class: 'color-dropdown hidden' }, [
+				el('div', { style: 'grid-column: 1 / -1; padding: 4px; border-bottom: 1px solid #eee; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;' }, [
+					el('span', { style: 'font-size: 12px; color: #666;' }, 'Personalizada:'),
+					customColorInput
+				])
+			]);
+			
+			colorList.forEach(color => {
+				const colorBtn = el('button', {
+					class: 'color-btn',
+					style: `background-color: ${color}; ${color === 'transparent' ? 'background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0px;' : ''}`,
+					title: color,
+					onclick: (e) => { e.preventDefault(); wrapSelectionWithColor(colorType, color); dropdown.classList.add('hidden'); }
+				});
+				dropdown.append(colorBtn);
+			});
+			
+			const wrapper = el('div', { class: 'dropdown-wrapper' }, [btn, dropdown]);
+			
+			// Fechar dropdown ao clicar fora
+			document.addEventListener('click', (e) => {
+				if (!wrapper.contains(e.target)) {
+					dropdown.classList.add('hidden');
+				}
+			});
+			
+			return wrapper;
+		}
+		
+		const tb = el('div', { class: 'rich-text-toolbar' }, [
+			// Linha 1: Formatação básica
+			el('div', { class: 'toolbar-row' }, [
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Negrito (Ctrl+B)', 
+					onclick: (e) => { e.preventDefault(); wrapSelection('**', '**'); } 
+				}, [el('strong', {}, 'B')]),
+				
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Itálico (Ctrl+I)', 
+					onclick: (e) => { e.preventDefault(); wrapSelection('*', '*'); } 
+				}, [el('em', {}, 'I')]),
+				
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Sublinhado (Ctrl+U)', 
+					onclick: (e) => { e.preventDefault(); wrapSelection('++', '++'); } 
+				}, [el('u', {}, 'U')]),
+				
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Tachado', 
+					onclick: (e) => { e.preventDefault(); wrapSelection('~~', '~~'); } 
+				}, [el('del', {}, 'S')]),
+				
+				el('span', { class: 'toolbar-sep' }, '|'),
+				
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Código', 
+					onclick: (e) => { e.preventDefault(); wrapSelection('```', '```'); } 
+				}, [el('span', { class: 'material-symbols-outlined' }, 'code')]),
+				
+				el('span', { class: 'toolbar-sep' }, '|'),
+				
+				createColorPicker('color', 'Cor do texto', colors),
+				createColorPicker('bg', 'Cor de fundo', bgColors),
+				
+				el('span', { class: 'toolbar-sep' }, '|')
+			]),
+			
+			// Linha 2: Alinhamento e listas
+			el('div', { class: 'toolbar-row' }, [
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Alinhar à esquerda', 
+					onclick: (e) => { e.preventDefault(); wrapSelectionWithAlign('left'); } 
+				}, [el('span', { class: 'material-symbols-outlined' }, 'format_align_left')]),
+				
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Centralizar', 
+					onclick: (e) => { e.preventDefault(); wrapSelectionWithAlign('center'); } 
+				}, [el('span', { class: 'material-symbols-outlined' }, 'format_align_center')]),
+				
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Alinhar à direita', 
+					onclick: (e) => { e.preventDefault(); wrapSelectionWithAlign('right'); } 
+				}, [el('span', { class: 'material-symbols-outlined' }, 'format_align_right')]),
+				
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Justificar', 
+					onclick: (e) => { e.preventDefault(); wrapSelectionWithAlign('justify'); } 
+				}, [el('span', { class: 'material-symbols-outlined' }, 'format_align_justify')]),
+				
+				el('span', { class: 'toolbar-sep' }, '|'),
+				
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Lista não ordenada', 
+					onclick: (e) => { e.preventDefault(); insertSmartList('ul'); } 
+				}, [el('span', { class: 'material-symbols-outlined' }, 'format_list_bulleted')]),
+				
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Lista ordenada', 
+					onclick: (e) => { e.preventDefault(); insertSmartList('ol'); } 
+				}, [el('span', { class: 'material-symbols-outlined' }, 'format_list_numbered')]),
+				
+				el('span', { class: 'toolbar-sep' }, '|'),
+				
+				el('button', { 
+					class: 'toolbar-btn', 
+					title: 'Link', 
+					onclick: (e) => { e.preventDefault(); wrapSelection('[', '](https://)'); } 
+				}, [el('span', { class: 'material-symbols-outlined' }, 'link')])
+			])
 		]);
-		// atalhos simples
+		// Atalhos de teclado melhorados
 		textarea.addEventListener('keydown', (e) => {
 			if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) { e.preventDefault(); wrapSelection('**', '**'); }
 			if (e.ctrlKey && (e.key === 'i' || e.key === 'I')) { e.preventDefault(); wrapSelection('*', '*'); }
 			if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); wrapSelection('++', '++'); }
 			if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); wrapSelection('~~', '~~'); }
+			
+			// Enter inteligente para listas
+			if (e.key === 'Enter') {
+				const { selectionStart, value } = textarea;
+				const currentLine = value.lastIndexOf('\n', selectionStart - 1) + 1;
+				const lineEnd = value.indexOf('\n', selectionStart);
+				const lineContent = value.slice(currentLine, lineEnd === -1 ? value.length : lineEnd);
+				
+				// Detecta se estamos em uma lista
+				const ulMatch = lineContent.match(/^(\s*)-\s+(.*)$/);
+				const olMatch = lineContent.match(/^(\s*)(\d+)\.\s+(.*)$/);
+				
+				if (ulMatch) {
+					const [, indent, content] = ulMatch;
+					if (content.trim() === '') {
+						// Linha vazia, remove o marcador
+						e.preventDefault();
+						const start = currentLine;
+						const end = lineEnd === -1 ? value.length : lineEnd;
+						textarea.value = value.slice(0, start) + indent + value.slice(end);
+						textarea.setSelectionRange(start + indent.length, start + indent.length);
+					} else {
+						// Adiciona novo item da lista
+						e.preventDefault();
+						const newItem = `\n${indent}- `;
+						textarea.value = value.slice(0, selectionStart) + newItem + value.slice(selectionStart);
+						textarea.setSelectionRange(selectionStart + newItem.length, selectionStart + newItem.length);
+					}
+					textarea.dispatchEvent(new Event('input'));
+				} else if (olMatch) {
+					const [, indent, num, content] = olMatch;
+					if (content.trim() === '') {
+						// Linha vazia, remove o marcador
+						e.preventDefault();
+						const start = currentLine;
+						const end = lineEnd === -1 ? value.length : lineEnd;
+						textarea.value = value.slice(0, start) + indent + value.slice(end);
+						textarea.setSelectionRange(start + indent.length, start + indent.length);
+					} else {
+						// Adiciona novo item numerado
+						e.preventDefault();
+						const nextNum = parseInt(num) + 1;
+						const newItem = `\n${indent}${nextNum}. `;
+						textarea.value = value.slice(0, selectionStart) + newItem + value.slice(selectionStart);
+						textarea.setSelectionRange(selectionStart + newItem.length, selectionStart + newItem.length);
+					}
+					textarea.dispatchEvent(new Event('input'));
+				}
+			}
+			
+			// Tab para indentação em listas
+			if (e.key === 'Tab') {
+				const { selectionStart, value } = textarea;
+				const currentLine = value.lastIndexOf('\n', selectionStart - 1) + 1;
+				const lineEnd = value.indexOf('\n', selectionStart);
+				const lineContent = value.slice(currentLine, lineEnd === -1 ? value.length : lineEnd);
+				
+				if (lineContent.match(/^\s*[-*+]\s+/) || lineContent.match(/^\s*\d+\.\s+/)) {
+					e.preventDefault();
+					const indent = e.shiftKey ? '' : '  '; // Shift+Tab remove indentação
+					if (e.shiftKey) {
+						// Remove indentação
+						if (lineContent.startsWith('  ')) {
+							textarea.value = value.slice(0, currentLine) + lineContent.slice(2) + value.slice(lineEnd === -1 ? value.length : lineEnd);
+							textarea.setSelectionRange(selectionStart - 2, selectionStart - 2);
+						}
+					} else {
+						// Adiciona indentação
+						textarea.value = value.slice(0, currentLine) + '  ' + lineContent + value.slice(lineEnd === -1 ? value.length : lineEnd);
+						textarea.setSelectionRange(selectionStart + 2, selectionStart + 2);
+					}
+					textarea.dispatchEvent(new Event('input'));
+				}
+			}
 		});
 		return tb;
 	}
-	function createMarkdownEditor(initialText = '') {
+	function createRichTextEditor(initialText = '') {
 		const placeholderText = 'Digite aqui a descrição...';
-		const ta = el('textarea', { placeholder: placeholderText }, initialText || '');
-		const preview = el('div', { class: 'markdown-preview' });
-		const toolbar = createMdToolbar(ta, preview);
-		const root = el('div', { class: 'md-editor' }, [toolbar, el('div', { class: 'md-panels' }, [el('div', { class: 'md-input' }, ta), preview])]);
+		const ta = el('textarea', { placeholder: placeholderText, class: 'rich-text-input' }, initialText || '');
+		const preview = el('div', { class: 'rich-text-preview' });
+		const toolbar = createRichTextToolbar(ta, preview);
+		const root = el('div', { class: 'rich-text-editor' }, [
+			toolbar, 
+			el('div', { class: 'rich-text-panels' }, [
+				el('div', { class: 'rich-text-input-wrapper' }, ta), 
+				preview
+			])
+		]);
 		function syncHeights() {
 			try {
 				const isEditing = root.classList.contains('editing');
-				// Libera alturas para medir naturalmente
 				ta.style.height = 'auto';
 				preview.style.height = 'auto';
 				if (isEditing) {
-					// Em edição: igualar pela maior altura entre preview e textarea
 					const taH = Math.max(ta.scrollHeight || 0, 0);
 					const pvH = Math.max(preview.scrollHeight || 0, 0);
-					const h = Math.max(140, taH, pvH);
+					const h = Math.max(200, taH, pvH); // Altura mínima maior para editor rico
 					ta.style.height = h + 'px';
 					preview.style.height = h + 'px';
 				} else {
-					// Fora de edição: deixa preview seguir o conteúdo naturalmente
 					preview.style.height = 'auto';
 				}
 			} catch {}
 		}
-		// Garante sincronização após mudanças de layout (ex.: entrar no modo de edição)
+		
 		function syncAfterLayout() {
 			try { requestAnimationFrame(() => requestAnimationFrame(syncHeights)); } catch { syncHeights(); }
 		}
+		
 		const render = () => {
 			const val = ta.value || '';
 			if (!val.trim()) {
@@ -445,43 +817,45 @@ async function taskForm(initial = {}) {
 				return;
 			}
 			preview.classList.remove('empty');
-			preview.innerHTML = mdToHtml(val);
+			preview.innerHTML = richTextToHtml(val);
 			syncHeights();
 		};
+		
 		const setEditing = (on) => {
 			root.classList.toggle('editing', !!on);
-			// ao alternar modo, o preview muda de largura/altura; sincroniza a textarea
 			syncAfterLayout();
 		};
+		
 		// Render inicial e estado não editando
 		render();
 		setEditing(false);
+		
 		// Permitir seleção/cópia no preview sem alternar modo ao clicar
 		preview.setAttribute('tabindex', '0');
 		preview.addEventListener('mousedown', (e) => {
-			// Não alterar modo ao clicar/selecionar
 			e.stopPropagation();
 		});
+		
 		// Ao clicar no preview quando não estiver editando, entrar em edição
 		preview.addEventListener('click', (e) => {
 			const a = e.target && e.target.closest ? e.target.closest('a') : null;
 			if (a) return; // permite abrir links normalmente
 			if (!root.classList.contains('editing')) {
 				setEditing(true);
-				// foca e garante altura alinhada imediatamente ao abrir edição
 				setTimeout(() => { ta.focus(); syncAfterLayout(); }, 0);
 			}
 		});
+		
 		// Manter preview atualizado
 		ta.addEventListener('input', render);
 		window.addEventListener('resize', () => syncHeights());
+		
 		// Alterna classe de edição baseado no foco dentro do editor
 		let blurTimer;
 		root.addEventListener('focusin', (e) => {
 			if (blurTimer) clearTimeout(blurTimer);
 			const t = e.target;
-			// Só ativa edição quando o foco entrar na textarea (md-input) ou toolbar
-			if (t && (t.closest && (t.closest('.md-input') || t.closest('.md-toolbar')))) {
+			if (t && (t.closest && (t.closest('.rich-text-input-wrapper') || t.closest('.rich-text-toolbar')))) {
 				setEditing(true);
 				syncAfterLayout();
 			}
@@ -491,9 +865,10 @@ async function taskForm(initial = {}) {
 				if (!root.contains(document.activeElement)) setEditing(false);
 			}, 80);
 		});
+		
 		return { root, getValue: () => ta.value, setValue: (v) => { ta.value = v || ''; render(); } };
 	}
-	const descEditor = createMarkdownEditor(initial.description || '');
+	const descEditor = createRichTextEditor(initial.description || '');
 
 	// Checklist (subtarefas)
 	const subtasks = (initial.subtasks || []).map(s => ({ ...s }));
