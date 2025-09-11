@@ -1,0 +1,618 @@
+/* Advanced Editor Styles */
+.advanced-editor-container {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+    overflow: hidden;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    width: 100%;
+}
+
+/* Toolbar */
+.editor-toolbar {
+    background: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+    padding: 0.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+    overflow-x: auto;
+}
+
+.toolbar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: max-content;
+}
+
+.toolbar-label {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.button-group {
+    display: flex;
+    gap: 0.15rem;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 0.15rem;
+}
+
+.btn-editor {
+    background: transparent;
+    border: none;
+    padding: 0.4rem;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #495057;
+    font-size: 0.85rem;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    min-height: 28px;
+}
+
+.btn-editor:hover {
+    background: #e9ecef;
+    color: #212529;
+}
+
+.btn-editor.active {
+    background: #007bff;
+    color: white;
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn-editor.active:hover {
+    background: #0056b3;
+    color: white;
+}
+
+.select-group {
+    display: flex;
+    gap: 0.4rem;
+}
+
+.select-group select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background: white;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+    min-width: 80px;
+}
+
+.select-group select:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+/* Color Group */
+.color-group {
+    display: flex;
+    gap: 0.4rem;
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 0.15rem;
+}
+
+.color-picker-wrapper {
+    position: relative;
+}
+
+.color-picker-wrapper input[type="color"] {
+    position: absolute;
+    opacity: 0;
+    width: 28px;
+    height: 28px;
+    cursor: pointer;
+    z-index: 1;
+}
+
+.color-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #495057;
+    position: relative;
+}
+
+.color-label:hover {
+    background: #e9ecef;
+    color: #212529;
+    transform: translateY(-1px);
+}
+
+.color-label.color-active {
+    background: #007bff;
+    color: white;
+    transform: translateY(-1px);
+}
+
+/* Editor */
+.advanced-editor {
+    min-height: 200px;
+    max-height: 400px;
+    overflow-y: auto;
+    padding: 1.25rem;
+    outline: none;
+    font-family: 'Inter', sans-serif;
+    font-size: 14pt;
+    line-height: 1.6;
+    color: #333;
+    background: white;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.advanced-editor:focus {
+    box-shadow: inset 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.advanced-editor[placeholder]:empty:before {
+    content: attr(placeholder);
+    color: #adb5bd;
+    font-style: italic;
+}
+
+/* Estilos para elementos do editor */
+.advanced-editor h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 1rem 0;
+    color: #2c3e50;
+}
+
+.advanced-editor h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 1rem 0;
+    color: #34495e;
+}
+
+.advanced-editor h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 1rem 0;
+    color: #34495e;
+}
+
+.advanced-editor h4 {
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin: 1rem 0;
+    color: #34495e;
+}
+
+.advanced-editor p {
+    margin: 0.5rem 0;
+}
+
+.advanced-editor blockquote {
+    border-left: 4px solid #007bff;
+    background: #f8f9fa;
+    padding: 1rem;
+    margin: 0.5rem 0;
+    font-style: italic;
+    border-radius: 0 4px 4px 0;
+    position: relative;
+    min-height: 1.2em;
+}
+
+.advanced-editor blockquote:empty::before {
+    content: "Clique aqui para escrever uma citação... (Enter: nova linha | Shift+Enter: sair do bloco)";
+    color: #adb5bd;
+    font-style: italic;
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    pointer-events: none;
+    font-size: 0.9rem;
+}
+
+.advanced-editor ul, .advanced-editor ol {
+    margin: 0.5rem 0;
+    padding-left: 2rem;
+}
+
+.advanced-editor li {
+    margin: 0.25rem 0;
+}
+
+.advanced-editor a {
+    color: #007bff;
+    text-decoration: none;
+    border-bottom: 1px dotted #007bff;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.advanced-editor a:hover {
+    text-decoration: underline;
+    color: #0056b3;
+    border-bottom-color: #0056b3;
+}
+
+.advanced-editor a:visited {
+    color: #6f42c1;
+    border-bottom-color: #6f42c1;
+}
+
+.advanced-editor strong {
+    font-weight: 600;
+}
+
+.advanced-editor em {
+    font-style: italic;
+}
+
+.advanced-editor u {
+    text-decoration: underline;
+}
+
+.advanced-editor strike {
+    text-decoration: line-through;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .editor-toolbar {
+        padding: 0.5rem;
+        gap: 0.75rem;
+    }
+    
+    .toolbar-group {
+        gap: 0.2rem;
+    }
+    
+    .toolbar-label {
+        font-size: 0.65rem;
+    }
+    
+    .btn-editor {
+        min-width: 26px;
+        min-height: 26px;
+        padding: 0.3rem;
+        font-size: 0.8rem;
+    }
+    
+    .select-group select {
+        font-size: 0.75rem;
+        padding: 0.35rem 0.5rem;
+        min-width: 70px;
+    }
+    
+    .color-label {
+        width: 26px;
+        height: 26px;
+    }
+    
+    .color-picker-wrapper input[type="color"] {
+        width: 26px;
+        height: 26px;
+    }
+    
+    .advanced-editor {
+        padding: 1rem;
+        font-size: 12pt;
+    }
+}
+
+/* Font Awesome Icons (se não estiver carregado) */
+.fas::before {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+}
+
+.fa-bold::before { content: "\f032"; }
+.fa-italic::before { content: "\f033"; }
+.fa-underline::before { content: "\f0cd"; }
+.fa-strikethrough::before { content: "\f0cc"; }
+.fa-font::before { content: "\f031"; }
+.fa-highlighter::before { content: "\f591"; }
+.fa-align-left::before { content: "\f036"; }
+.fa-align-center::before { content: "\f037"; }
+.fa-align-right::before { content: "\f038"; }
+.fa-align-justify::before { content: "\f039"; }
+.fa-list-ul::before { content: "\f0ca"; }
+.fa-list-ol::before { content: "\f0cb"; }
+.fa-link::before { content: "\f0c1"; }
+.fa-table::before { content: "\f0ce"; }
+.fa-indent::before { content: "\f03c"; }
+.fa-outdent::before { content: "\f03b"; }
+
+/* Estilos para tabelas no editor */
+.advanced-editor .editor-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.advanced-editor .editor-table th,
+.advanced-editor .editor-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border: 1px solid #e9ecef;
+    vertical-align: top;
+}
+
+.advanced-editor .editor-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+
+.advanced-editor .editor-table tbody tr:hover {
+    background: #f8f9fa;
+}
+
+/* Estilos para código */
+.advanced-editor pre {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    padding: 1rem;
+    margin: 1rem 0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    position: relative;
+    min-height: 1.4em;
+    display: block;
+}
+
+.advanced-editor pre:empty::before {
+    content: "Clique aqui para escrever código... (Enter: nova linha | Shift+Enter: sair do bloco)";
+    color: #adb5bd;
+    font-style: italic;
+    font-family: 'Inter', sans-serif;
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    pointer-events: none;
+    font-size: 0.9rem;
+}
+
+/* Modal de Link */
+.link-modal-overlay,
+.table-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
+}
+
+.link-modal,
+.table-modal {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: slideIn 0.3s ease;
+}
+
+.table-modal {
+    max-width: 600px;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideIn {
+    from { 
+        opacity: 0;
+        transform: translateY(-20px) scale(0.95);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.link-modal-header,
+.table-modal-header {
+    padding: 1.5rem 2rem 0 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #e9ecef;
+    margin-bottom: 1.5rem;
+}
+
+.link-modal-header h3,
+.table-modal-header h3 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.link-modal-close,
+.table-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #6c757d;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.link-modal-close:hover,
+.table-modal-close:hover {
+    background: #f8f9fa;
+    color: #495057;
+}
+
+.link-modal-body,
+.table-modal-body {
+    padding: 0 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #495057;
+}
+
+.form-group input[type="url"],
+.form-group input[type="text"],
+.form-group input[type="number"] {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+.form-group input[type="url"]:focus,
+.form-group input[type="text"]:focus,
+.form-group input[type="number"]:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+}
+
+.form-group input[type="checkbox"] {
+    margin-right: 0.5rem;
+}
+
+.table-preview {
+    margin-top: 1rem;
+}
+
+.table-preview h4 {
+    margin: 0 0 1rem 0;
+    color: #495057;
+    font-size: 1rem;
+    font-weight: 500;
+}
+
+.table-preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.table-preview-table th,
+.table-preview-table td {
+    padding: 8px 12px;
+    border: 1px solid #dee2e6;
+    text-align: left;
+}
+
+.table-preview-table th {
+    background: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+.link-modal-footer,
+.table-modal-footer {
+    padding: 1.5rem 2rem 2rem 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    border-top: 1px solid #e9ecef;
+    margin-top: 1.5rem;
+}
+
+.btn-cancel,
+.btn-primary {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 100px;
+}
+
+.btn-cancel {
+    background: #f8f9fa;
+    color: #6c757d;
+    border: 2px solid #e9ecef;
+}
+
+.btn-cancel:hover {
+    background: #e9ecef;
+    color: #495057;
+}
+
+.btn-primary {
+    background: #007bff;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}

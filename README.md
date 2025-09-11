@@ -26,15 +26,10 @@ Sistema Kanban completo com interface moderna e funcionalidades avançadas. Dese
   - 🔴 **Vermelho**: Atrasado
 - **Templates com prazos automáticos** (dias + horas/minutos)
 
-### 📝 Editor de Texto Rico
-- **Formatação avançada** com toolbar profissional
-- **Cores personalizáveis** para texto e fundo
-- **Seletor de fontes** (Arial, Times New Roman, Georgia, etc.)
-- **Código** com syntax highlighting e backgrounds coloridos
-- **Alinhamento** (esquerda, centro, direita, justificado)
-- **Listas inteligentes** com numeração hierárquica (1.1.1, 1.1.2)
-- **Links** que abrem em nova aba
-- **Preview em tempo real** lado a lado
+### 📝 Campo de Descrição
+- **Campo de texto simples** para descrições de tarefas
+- **Interface limpa** e focada na funcionalidade
+- **Edição direta** sem formatação complexa
 
 ### 🎨 Interface e UX
 - **Drag & Drop** para reordenação de colunas e tarefas
@@ -115,16 +110,6 @@ Sistema Kanban completo com interface moderna e funcionalidades avançadas. Dese
 4. **Crie tarefas** com descrições ricas e prazos
 5. **Arraste e solte** para organizar
 
-### Editor de Texto Rico
-O editor suporta formatação avançada:
-
-- **Negrito**: `**texto**` ou botão B
-- **Itálico**: `*texto*` ou botão I  
-- **Cores**: Use os seletores de cor ou `{color:#ff0000}texto{/color}`
-- **Fontes**: Selecione no dropdown ou `{font:Arial}texto{/font}`
-- **Código**: Use ``` para blocos ou ` para inline
-- **Listas**: Numeração automática inteligente com recuo
-
 ### Prazos e Templates
 - **Defina prazos** com data e hora específicas
 - **Crie templates** com prazos automáticos (ex: +3 dias, +2 horas)
@@ -149,19 +134,6 @@ to-do-kanban/
 │   └── migrations.postgres.sql # Migrações
 └── scripts/           # Scripts de instalação
 ```
-
-## 🤝 Contribuição
-
-1. Fork o projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
-## 📄 Licença
-
-Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para detalhes.
-
 ---
 
 **Desenvolvido por [Pedro Luiz Zampar](http://github.com/PedroLuizZampar)**

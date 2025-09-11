@@ -316,622 +316,1072 @@ async function taskForm(initial = {}) {
 			return toLocalDatetimeValue(now);
 		}
 
-	// Editor de texto rico com formatação avançada
-	function escapeHtml(str) {
-		return (str || '').replace(/[&<>"']/g, (ch) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch]));
-	}
-	
-	function richTextToHtml(content) {
-		if (!content) return '';
-		let s = escapeHtml(content);
+	// Editor de texto avançado com formatação rica
+	function createAdvancedEditor(initialText = '') {
+		// Criar o container principal
+		const editorContainer = el('div', { class: 'advanced-editor-container' });
 		
-		// PRIMEIRA FASE: Processar cores de fundo ANTES das outras formatações
-		// Formatação de cor de fundo para blocos de código: {bg:#color}```código```{/bg}
-		s = s.replace(/\{bg:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}```([\s\S]*?)```\{\/bg\}/g, '<pre style="background-color:$1; border:1px solid #ddd; border-radius:4px; padding:8px; margin:4px 0; overflow-x:auto;"><code>$2</code></pre>');
-		
-		// Formatação de cor de fundo para código inline: {bg:#color}`código`{/bg}
-		s = s.replace(/\{bg:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}`([^`]+)`\{\/bg\}/g, '<code style="background-color:$1; padding:1px 4px; border-radius:3px; font-family:monospace;">$2</code>');
-		
-		// SEGUNDA FASE: Processar formatações normais
-		// Code blocks (```) multiline - sem cor personalizada
-		s = s.replace(/```([\s\S]*?)```/g, (m, p1) => `<pre style="background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:8px; margin:4px 0; overflow-x:auto;"><code>${p1.replace(/\n/g,'<br>')}</code></pre>`);
-		
-		// Inline code `code` - sem cor personalizada
-		s = s.replace(/`([^`]+)`/g, '<code style="background:#f5f5f5; padding:1px 4px; border-radius:3px; font-family:monospace;">$1</code>');
-		
-		// Links [texto](url)
-		s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#007bff; text-decoration:none; border-bottom:1px dotted #007bff;">$1</a>');
-		
-		// Formatação básica
-		s = s.replace(/\*\*([^*]+)\*\*/g, '<strong style="font-weight:600;">$1</strong>');
-		s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-		s = s.replace(/\+\+([^+]+)\+\+/g, '<u>$1</u>');
-		s = s.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-		
-		// Formatação de fonte: {font:Arial}texto{/font}
-		s = s.replace(/\{font:([^}]+)\}([\s\S]*?)\{\/font\}/g, '<span style="font-family:$1">$2</span>');
-		
-		// Formatação de cor de texto: {color:#ff0000}texto{/color}
-		s = s.replace(/\{color:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}([\s\S]*?)\{\/color\}/g, '<span style="color:$1">$2</span>');
-		
-		// Formatação de cor de fundo para texto normal: {bg:#ffff00}texto{/bg}
-		s = s.replace(/\{bg:(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}|[a-zA-Z]+)\}([\s\S]*?)\{\/bg\}/g, '<span style="background-color:$1; padding:1px 3px; border-radius:2px;">$2</span>');
-		
-		// Alinhamento de texto: {align:center}texto{/align}
-		s = s.replace(/\{align:(left|center|right|justify)\}([\s\S]*?)\{\/align\}/g, '<div style="text-align:$1">$2</div>');
-		
-		// Headings com estilo melhorado
-		s = s.replace(/^######\s+(.*)$/gm, '<h6 style="color:#666; margin:8px 0 4px 0; font-size:0.85em; font-weight:500;">$1</h6>');
-		s = s.replace(/^#####\s+(.*)$/gm, '<h5 style="color:#666; margin:8px 0 4px 0; font-size:0.9em; font-weight:500;">$1</h5>');
-		s = s.replace(/^####\s+(.*)$/gm, '<h4 style="color:#555; margin:10px 0 5px 0; font-size:1em; font-weight:600;">$1</h4>');
-		s = s.replace(/^###\s+(.*)$/gm, '<h3 style="color:#444; margin:12px 0 6px 0; font-size:1.1em; font-weight:600;">$1</h3>');
-		s = s.replace(/^##\s+(.*)$/gm, '<h2 style="color:#333; margin:14px 0 7px 0; font-size:1.25em; font-weight:700; border-bottom:1px solid #eee; padding-bottom:2px;">$1</h2>');
-		s = s.replace(/^#\s+(.*)$/gm, '<h1 style="color:#222; margin:16px 0 8px 0; font-size:1.4em; font-weight:700; border-bottom:2px solid #ddd; padding-bottom:3px;">$1</h1>');
-		
-		// Listas não ordenadas melhoradas com alternância de bolinhas (pretas/brancas)
-		s = s.replace(/(^|\n)([ ]*[-*+]\s+.+(?:\n[ ]*[-*+]\s+.+)*)/gm, (match, prefix, listBlock) => {
-			const lines = listBlock.split('\n').filter(l => l.trim());
-			let html = prefix + '<ul style="margin:4px 0; padding-left:20px; list-style-type:disc;">';
-			let currentLevel = 0;
-			
-			for (const line of lines) {
-				const indent = (line.match(/^[ ]*/)[0] || '').length;
-				const level = Math.floor(indent / 2);
-				const text = line.replace(/^[ ]*[-*+]\s+/, '').trim();
-				
-				if (level > currentLevel) {
-					for (let i = currentLevel; i < level; i++) {
-						// Alterna entre disc (bolinha preta) e circle (bolinha branca)
-						// Nível 0: disc (preto), Nível 1: circle (branco), Nível 2: disc (preto), etc.
-						const listStyle = (i + 1) % 2 === 1 ? 'circle' : 'disc';
-						html += `<ul style="margin:2px 0; padding-left:16px; list-style-type:${listStyle};">`;
-					}
-				} else if (level < currentLevel) {
-					for (let i = currentLevel; i > level; i--) {
-						html += '</ul>';
-					}
-				}
-				
-				html += `<li style="margin:2px 0; line-height:1.3;">${text}</li>`;
-				currentLevel = level;
-			}
-			
-			for (let i = currentLevel; i >= 0; i--) {
-				html += '</ul>';
-			}
-			
-			return html;
-		});
-		
-		// Listas ordenadas melhoradas com numeração inteligente multinível (1.1.1, 1.1.2, etc.)
-		s = s.replace(/(^|\n)([ ]*\d+\.\s+.+(?:\n[ ]*\d+\.\s+.+)*)/gm, (match, prefix, listBlock) => {
-			const lines = listBlock.split('\n').filter(l => l.trim());
-			let html = prefix + '<ol style="margin:4px 0; padding-left:30px; list-style-type:none;">';
-			let currentLevel = 0;
-			let counters = [0]; // Contadores por nível
-			
-			for (const line of lines) {
-				const indent = (line.match(/^[ ]*/)[0] || '').length;
-				const level = Math.floor(indent / 2);
-				const text = line.replace(/^[ ]*\d+\.\s+/, '').trim();
-				
-				// Ajusta array de contadores conforme o nível
-				while (counters.length <= level) {
-					counters.push(0);
-				}
-				
-				// Gerencia transições de nível
-				if (level > currentLevel) {
-					// Subindo de nível - abre novas listas
-					for (let i = currentLevel; i < level; i++) {
-						html += `<ol style="margin:2px 0; padding-left:30px; list-style-type:none;">`;
-					}
-				} else if (level < currentLevel) {
-					// Descendo de nível - fecha listas e reseta contadores
-					for (let i = currentLevel; i > level; i--) {
-						html += '</ol>';
-						if (i < counters.length) {
-							counters[i] = 0; // Reset contador do nível abandonado
-						}
-					}
-				}
-				
-				// Incrementa contador do nível atual
-				counters[level]++;
-				
-				// Gera numeração hierárquica completa (ex: 1.2.3)
-				let hierarchicalNumber = '';
-				for (let i = 0; i <= level; i++) {
-					if (i === 0) {
-						hierarchicalNumber = counters[i].toString();
-					} else {
-						hierarchicalNumber += '.' + counters[i];
-					}
-				}
-				
-				// Aplica numeração customizada com recuo proporcional ao nível
-				html += `<li style="margin:2px 0; line-height:1.3; position:relative; list-style:none;">`;
-				html += `<span style="position:absolute; left:-25px; font-weight:500; color:#666; min-width:20px; text-align:right;">${hierarchicalNumber}.</span>`;
-				html += `${text}</li>`;
-				
-				currentLevel = level;
-			}
-			
-			// Fecha todas as listas abertas
-			for (let i = currentLevel; i >= 0; i--) {
-				html += '</ol>';
-			}
-			
-			return html;
-		});
-		
-		// Line breaks
-		s = s.replace(/\n/g, '<br>');
-		
-		// Remove <br> após headings e divs
-		s = s.replace(/<\/(h[1-6]|div)><br>/g, '</$1>');
-		
-		return s;
-	}
-	function createRichTextToolbar(textarea, preview) {
-		function wrapSelection(start, end = start) {
-			const ta = textarea;
-			const { selectionStart, selectionEnd, value } = ta;
-			const before = value.slice(0, selectionStart);
-			const sel = value.slice(selectionStart, selectionEnd) || 'texto';
-			const after = value.slice(selectionEnd);
-			ta.value = before + start + sel + end + after;
-			ta.focus();
-			const pos = (before + start + sel + end).length;
-			ta.setSelectionRange(pos, pos);
-			ta.dispatchEvent(new Event('input'));
-		}
-		
-		function wrapSelectionWithColor(colorType, color) {
-			wrapSelection(`{${colorType}:${color}}`, `{/${colorType}}`);
-		}
-		
-		function wrapSelectionWithAlign(alignment) {
-			const ta = textarea;
-			const { selectionStart, selectionEnd, value } = ta;
-			const startLine = value.lastIndexOf('\n', selectionStart - 1) + 1;
-			const endLine = value.indexOf('\n', selectionEnd);
-			const endPos = endLine === -1 ? value.length : endLine;
-			const selectedText = value.slice(startLine, endPos);
-			
-			const newText = `{align:${alignment}}${selectedText}{/align}`;
-			ta.value = value.slice(0, startLine) + newText + value.slice(endPos);
-			ta.focus();
-			ta.setSelectionRange(startLine, startLine + newText.length);
-			ta.dispatchEvent(new Event('input'));
-		}
-		
-		function insertSmartList(type) {
-			const ta = textarea;
-			const { selectionStart, selectionEnd, value } = ta;
-			const before = value.slice(0, selectionStart);
-			const selected = value.slice(selectionStart, selectionEnd);
-			const after = value.slice(selectionEnd);
-			
-			if (selected.trim()) {
-				// Se há texto selecionado, converte cada linha em item de lista
-				const lines = selected.split('\n').filter(l => l.trim());
-				let result = '';
-				for (let i = 0; i < lines.length; i++) {
-					const line = lines[i].trim();
-					if (type === 'ul') {
-						result += `- ${line}\n`;
-					} else {
-						result += `${i + 1}. ${line}\n`;
-					}
-				}
-				ta.value = before + result + after;
-				ta.setSelectionRange(selectionStart, selectionStart + result.length);
-			} else {
-				// Se não há seleção, adiciona novo item de lista
-				const currentLine = value.lastIndexOf('\n', selectionStart - 1) + 1;
-				const lineContent = value.slice(currentLine, selectionStart);
-				const prefix = type === 'ul' ? '- ' : '1. ';
-				
-				if (lineContent.trim() === '') {
-					ta.value = before + prefix + after;
-					ta.setSelectionRange(selectionStart + prefix.length, selectionStart + prefix.length);
-				} else {
-					ta.value = before + '\n' + prefix + after;
-					ta.setSelectionRange(selectionStart + 1 + prefix.length, selectionStart + 1 + prefix.length);
-				}
-			}
-			ta.focus();
-			ta.dispatchEvent(new Event('input'));
-		}
-		
-		// Paleta de cores
-		const colors = ['#000000', '#333333', '#666666', '#999999', '#cccccc', '#ffffff', 
-		               '#ff0000', '#ff6600', '#ffaa00', '#ffdd00', '#88dd00', '#00dd00',
-		               '#00ddaa', '#00aadd', '#0066dd', '#0000dd', '#6600dd', '#dd00dd',
-		               '#dd0066', '#ffeeff', '#ffe0e0', '#fff5e0', '#ffffcc', '#f0fff0'];
-		
-		const bgColors = ['transparent', '#fff2cc', '#d5e8d4', '#dae8fc', '#f8cecc', '#e1d5e7',
-		                 '#ffd966', '#82b366', '#6c8ebf', '#b85450', '#9673a6', '#ffcc99'];
-		
-		// Lista de fontes
-		const fonts = [
-			{ name: 'Padrão', value: 'inherit' },
-			{ name: 'Arial', value: 'Arial, sans-serif' },
-			{ name: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
-			{ name: 'Times New Roman', value: 'Times New Roman, serif' },
-			{ name: 'Georgia', value: 'Georgia, serif' },
-			{ name: 'Courier New', value: 'Courier New, monospace' },
-			{ name: 'Verdana', value: 'Verdana, sans-serif' },
-			{ name: 'Trebuchet MS', value: 'Trebuchet MS, sans-serif' },
-			{ name: 'Comic Sans MS', value: 'Comic Sans MS, cursive' },
-			{ name: 'Impact', value: 'Impact, sans-serif' },
-			{ name: 'Palatino', value: 'Palatino, serif' },
-			{ name: 'Tahoma', value: 'Tahoma, sans-serif' }
-		];
-		
-		function createFontPicker(title) {
-			const btn = el('button', { 
-				class: 'toolbar-btn-dropdown',
-				title: title,
-				onclick: (e) => { e.preventDefault(); dropdown.classList.toggle('hidden'); }
-			}, [
-				el('span', { class: 'material-symbols-outlined' }, 'font_download'),
-				el('span', { class: 'dropdown-arrow' }, '▼')
-			]);
-			
-			const dropdown = el('div', { class: 'font-dropdown hidden' });
-			
-			fonts.forEach(font => {
-				const fontBtn = el('div', {
-					class: 'font-option',
-					style: `font-family: ${font.value}`,
-					onclick: (e) => {
-						e.preventDefault();
-						wrapSelection(`{font:${font.value}}`, '{/font}');
-						dropdown.classList.add('hidden');
-					}
-				}, font.name);
-				dropdown.appendChild(fontBtn);
-			});
-			
-			const wrapper = el('div', { class: 'dropdown-wrapper' }, [btn, dropdown]);
-			
-			// Fechar dropdown ao clicar fora
-			document.addEventListener('click', (e) => {
-				if (!wrapper.contains(e.target)) {
-					dropdown.classList.add('hidden');
-				}
-			});
-			
-			return wrapper;
-		}
-		
-		function createColorPicker(colorType, title, colorList) {
-			const btn = el('button', { 
-				class: 'toolbar-btn-dropdown',
-				title: title,
-				onclick: (e) => { e.preventDefault(); dropdown.classList.toggle('hidden'); }
-			}, [
-				el('span', { class: 'material-symbols-outlined' }, colorType === 'color' ? 'format_color_text' : 'format_color_fill'),
-				el('span', { class: 'material-symbols-outlined dropdown-arrow' }, 'expand_more')
-			]);
-			
-			const customColorInput = el('input', {
-				type: 'color',
-				title: 'Cor personalizada',
-				style: 'width: 40px; height: 20px; border: 1px solid #ccc; border-radius: 3px; cursor: pointer; margin: 4px;',
-				onchange: (e) => {
-					const color = e.target.value;
-					if (colorType === 'color') {
-						wrapSelection(`{color:${color}}`, '{/color}');
-					} else {
-						wrapSelection(`{bg:${color}}`, '{/bg}');
-					}
-					dropdown.classList.add('hidden');
-				}
-			});
-			
-			const dropdown = el('div', { class: 'color-dropdown hidden' }, [
-				el('div', { style: 'grid-column: 1 / -1; padding: 4px; border-bottom: 1px solid #eee; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;' }, [
-					el('span', { style: 'font-size: 12px; color: #666;' }, 'Personalizada:'),
-					customColorInput
+		// Criar toolbar
+		const toolbar = el('div', { class: 'editor-toolbar' }, [
+			// Grupo de Formatação
+			el('div', { class: 'toolbar-group' }, [
+				el('label', { class: 'toolbar-label' }, 'Formatação'),
+				el('div', { class: 'button-group' }, [
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Negrito (Ctrl+B)',
+						onclick: (e) => { e.preventDefault(); formatText('bold'); }
+					}, el('i', { class: 'fas fa-bold' })),
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Itálico (Ctrl+I)',
+						onclick: (e) => { e.preventDefault(); formatText('italic'); }
+					}, el('i', { class: 'fas fa-italic' })),
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Sublinhado (Ctrl+U)',
+						onclick: (e) => { e.preventDefault(); formatText('underline'); }
+					}, el('i', { class: 'fas fa-underline' })),
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Riscado',
+						onclick: (e) => { e.preventDefault(); formatText('strikeThrough'); }
+					}, el('i', { class: 'fas fa-strikethrough' }))
 				])
-			]);
-			
-			colorList.forEach(color => {
-				const colorBtn = el('button', {
-					class: 'color-btn',
-					style: `background-color: ${color}; ${color === 'transparent' ? 'background-image: linear-gradient(45deg, #ccc 25%, transparent 25%), linear-gradient(-45deg, #ccc 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #ccc 75%), linear-gradient(-45deg, transparent 75%, #ccc 75%); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0px;' : ''}`,
-					title: color,
-					onclick: (e) => { e.preventDefault(); wrapSelectionWithColor(colorType, color); dropdown.classList.add('hidden'); }
-				});
-				dropdown.append(colorBtn);
-			});
-			
-			const wrapper = el('div', { class: 'dropdown-wrapper' }, [btn, dropdown]);
-			
-			// Fechar dropdown ao clicar fora
-			document.addEventListener('click', (e) => {
-				if (!wrapper.contains(e.target)) {
-					dropdown.classList.add('hidden');
-				}
-			});
-			
-			return wrapper;
-		}
-		
-		const tb = el('div', { class: 'rich-text-toolbar' }, [
-			// Linha 1: Formatação básica
-			el('div', { class: 'toolbar-row' }, [
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Negrito (Ctrl+B)', 
-					onclick: (e) => { e.preventDefault(); wrapSelection('**', '**'); } 
-				}, [el('strong', {}, 'B')]),
-				
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Itálico (Ctrl+I)', 
-					onclick: (e) => { e.preventDefault(); wrapSelection('*', '*'); } 
-				}, [el('em', {}, 'I')]),
-				
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Sublinhado (Ctrl+U)', 
-					onclick: (e) => { e.preventDefault(); wrapSelection('++', '++'); } 
-				}, [el('u', {}, 'U')]),
-				
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Tachado', 
-					onclick: (e) => { e.preventDefault(); wrapSelection('~~', '~~'); } 
-				}, [el('del', {}, 'S')]),
-				
-				el('span', { class: 'toolbar-sep' }, '|'),
-				
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Código', 
-					onclick: (e) => { e.preventDefault(); wrapSelection('```', '```'); } 
-				}, [el('span', { class: 'material-symbols-outlined' }, 'code')]),
-				
-				el('span', { class: 'toolbar-sep' }, '|'),
-				
-				createColorPicker('color', 'Cor do texto', colors),
-				createColorPicker('bg', 'Cor de fundo', bgColors),
-				
-				el('span', { class: 'toolbar-sep' }, '|'),
-				
-				createFontPicker('Selecionar fonte')
 			]),
 			
-			// Linha 2: Alinhamento e listas
-			el('div', { class: 'toolbar-row' }, [
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Alinhar à esquerda', 
-					onclick: (e) => { e.preventDefault(); wrapSelectionWithAlign('left'); } 
-				}, [el('span', { class: 'material-symbols-outlined' }, 'format_align_left')]),
-				
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Centralizar', 
-					onclick: (e) => { e.preventDefault(); wrapSelectionWithAlign('center'); } 
-				}, [el('span', { class: 'material-symbols-outlined' }, 'format_align_center')]),
-				
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Alinhar à direita', 
-					onclick: (e) => { e.preventDefault(); wrapSelectionWithAlign('right'); } 
-				}, [el('span', { class: 'material-symbols-outlined' }, 'format_align_right')]),
-				
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Justificar', 
-					onclick: (e) => { e.preventDefault(); wrapSelectionWithAlign('justify'); } 
-				}, [el('span', { class: 'material-symbols-outlined' }, 'format_align_justify')]),
-				
-				el('span', { class: 'toolbar-sep' }, '|'),
-				
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Lista não ordenada', 
-					onclick: (e) => { e.preventDefault(); insertSmartList('ul'); } 
-				}, [el('span', { class: 'material-symbols-outlined' }, 'format_list_bulleted')]),
-				
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Lista ordenada', 
-					onclick: (e) => { e.preventDefault(); insertSmartList('ol'); } 
-				}, [el('span', { class: 'material-symbols-outlined' }, 'format_list_numbered')]),
-				
-				el('span', { class: 'toolbar-sep' }, '|'),
-				
-				el('button', { 
-					class: 'toolbar-btn', 
-					title: 'Link', 
-					onclick: (e) => { e.preventDefault(); wrapSelection('[', '](https://)'); } 
-				}, [el('span', { class: 'material-symbols-outlined' }, 'link')])
+			// Grupo de Fonte
+			el('div', { class: 'toolbar-group' }, [
+				el('label', { class: 'toolbar-label' }, 'Fonte'),
+				el('div', { class: 'select-group' }, [
+					el('select', { 
+						id: 'editorFontFamily',
+						title: 'Família da Fonte',
+						style: 'width: 160px',
+						onchange: () => changeFontFamily()
+					}, [
+						el('option', { value: 'Inter' }, 'Inter'),
+						el('option', { value: 'Arial' }, 'Arial'),
+						el('option', { value: 'Times New Roman' }, 'Times New Roman'),
+						el('option', { value: 'Helvetica' }, 'Helvetica'),
+						el('option', { value: 'Georgia' }, 'Georgia'),
+						el('option', { value: 'Verdana' }, 'Verdana'),
+						el('option', { value: 'monospace' }, 'Monospace')
+					]),
+					el('select', { 
+						id: 'editorFontSize',
+						title: 'Tamanho da Fonte',
+						style: 'width: 60px',
+						onchange: () => changeFontSize()
+					}, [
+						el('option', { value: '12' }, '12px'),
+						el('option', { value: '13' }, '13px'),
+						el('option', { value: '14' }, '14px'),
+						el('option', { value: '16', selected: true }, '16px'),
+						el('option', { value: '18' }, '18px'),
+						el('option', { value: '20' }, '20px'),
+						el('option', { value: '24' }, '24px'),
+						el('option', { value: '32' }, '32px'),
+						el('option', { value: '48' }, '48px')
+					])
+				])
+			]),
+			
+			// Grupo de Cores
+			el('div', { class: 'toolbar-group' }, [
+				el('label', { class: 'toolbar-label' }, 'Cores'),
+				el('div', { class: 'color-group' }, [
+					el('div', { class: 'color-picker-wrapper' }, [
+						el('input', { 
+							type: 'color', 
+							id: 'editorTextColor', 
+							value: '#000000',
+							title: 'Cor do Texto',
+							onchange: () => changeTextColor()
+						}),
+						el('button', { 
+							type: 'button',
+							id: 'textColorBtn',
+							class: 'color-label',
+							title: 'Cor do Texto',
+							style: 'color: #000000',
+							onclick: () => { saveCurrentSelection(); document.getElementById('editorTextColor').click(); }
+						}, el('i', { class: 'fas fa-font' }))
+					]),
+					el('div', { class: 'color-picker-wrapper' }, [
+						el('input', { 
+							type: 'color', 
+							id: 'editorBackgroundColor', 
+							value: '#ffffff',
+							title: 'Cor de Fundo',
+							onchange: () => changeBackgroundColor()
+						}),
+						el('button', { 
+							type: 'button',
+							id: 'backgroundColorBtn',
+							class: 'color-label',
+							title: 'Cor de Fundo',
+							style: 'background-color: #ffffff; color: #000',
+							onclick: () => { saveCurrentSelection(); document.getElementById('editorBackgroundColor').click(); }
+						}, el('i', { class: 'fas fa-highlighter' }))
+					])
+				])
+			]),
+			
+			// Grupo de Alinhamento
+			el('div', { class: 'toolbar-group' }, [
+				el('label', { class: 'toolbar-label' }, 'Alinhamento'),
+				el('div', { class: 'button-group' }, [
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Alinhar à Esquerda',
+						onclick: (e) => { e.preventDefault(); alignText('left'); }
+					}, el('i', { class: 'fas fa-align-left' })),
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Centralizar',
+						onclick: (e) => { e.preventDefault(); alignText('center'); }
+					}, el('i', { class: 'fas fa-align-center' })),
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Alinhar à Direita',
+						onclick: (e) => { e.preventDefault(); alignText('right'); }
+					}, el('i', { class: 'fas fa-align-right' })),
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Justificar',
+						onclick: (e) => { e.preventDefault(); alignText('justify'); }
+					}, el('i', { class: 'fas fa-align-justify' }))
+				])
+			]),
+			
+			// Grupo de Listas
+			el('div', { class: 'toolbar-group' }, [
+				el('label', { class: 'toolbar-label' }, 'Listas'),
+				el('div', { class: 'button-group' }, [
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Lista com Marcadores',
+						onclick: (e) => { e.preventDefault(); formatText('insertUnorderedList'); }
+					}, el('i', { class: 'fas fa-list-ul' })),
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Lista Numerada',
+						onclick: (e) => { e.preventDefault(); formatText('insertOrderedList'); }
+					}, el('i', { class: 'fas fa-list-ol' }))
+				])
+			]),
+			
+			// Grupo de Estilos
+			el('div', { class: 'toolbar-group' }, [
+				el('label', { class: 'toolbar-label' }, 'Estilo'),
+				el('div', { class: 'select-group' }, [
+					el('select', { 
+						id: 'editorFormatBlock',
+						title: 'Estilo do Texto',
+						onchange: () => changeFormatBlock()
+					}, [
+						el('option', { value: 'div' }, 'Normal'),
+						el('option', { value: 'blockquote' }, 'Citação'),
+						el('option', { value: 'pre' }, 'Código')
+					])
+				])
+			]),
+			
+			// Grupo de Recuo
+			el('div', { class: 'toolbar-group' }, [
+				el('label', { class: 'toolbar-label' }, 'Recuo'),
+				el('div', { class: 'button-group' }, [
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Diminuir Recuo',
+						onclick: (e) => { e.preventDefault(); formatText('outdent'); }
+					}, el('i', { class: 'fas fa-outdent' })),
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Aumentar Recuo',
+						onclick: (e) => { e.preventDefault(); formatText('indent'); }
+					}, el('i', { class: 'fas fa-indent' }))
+				])
+			]),
+			
+			// Grupo de Inserir
+			el('div', { class: 'toolbar-group' }, [
+				el('label', { class: 'toolbar-label' }, 'Inserir'),
+				el('div', { class: 'button-group' }, [
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Inserir Link',
+						onclick: (e) => { e.preventDefault(); showLinkModal(); }
+					}, el('i', { class: 'fas fa-link' })),
+					el('button', { 
+						class: 'btn-editor', 
+						type: 'button',
+						title: 'Inserir Tabela',
+						onclick: (e) => { e.preventDefault(); showTableModal(); }
+					}, el('i', { class: 'fas fa-table' }))
+				])
 			])
 		]);
-		// Atalhos de teclado melhorados
-		textarea.addEventListener('keydown', (e) => {
-			if (e.ctrlKey && (e.key === 'b' || e.key === 'B')) { e.preventDefault(); wrapSelection('**', '**'); }
-			if (e.ctrlKey && (e.key === 'i' || e.key === 'I')) { e.preventDefault(); wrapSelection('*', '*'); }
-			if (e.ctrlKey && (e.key === 'u' || e.key === 'U')) { e.preventDefault(); wrapSelection('++', '++'); }
-			if (e.ctrlKey && (e.key === 's' || e.key === 'S')) { e.preventDefault(); wrapSelection('~~', '~~'); }
-			
-			// Enter inteligente para listas
-			if (e.key === 'Enter') {
-				const { selectionStart, value } = textarea;
-				const currentLine = value.lastIndexOf('\n', selectionStart - 1) + 1;
-				const lineEnd = value.indexOf('\n', selectionStart);
-				const lineContent = value.slice(currentLine, lineEnd === -1 ? value.length : lineEnd);
-				
-				// Detecta se estamos em uma lista
-				const ulMatch = lineContent.match(/^(\s*)-\s+(.*)$/);
-				const olMatch = lineContent.match(/^(\s*)(\d+)\.\s+(.*)$/);
-				
-				if (ulMatch) {
-					const [, indent, content] = ulMatch;
-					if (content.trim() === '') {
-						// Linha vazia, remove o marcador
-						e.preventDefault();
-						const start = currentLine;
-						const end = lineEnd === -1 ? value.length : lineEnd;
-						textarea.value = value.slice(0, start) + indent + value.slice(end);
-						textarea.setSelectionRange(start + indent.length, start + indent.length);
-					} else {
-						// Adiciona novo item da lista
-						e.preventDefault();
-						const newItem = `\n${indent}- `;
-						textarea.value = value.slice(0, selectionStart) + newItem + value.slice(selectionStart);
-						textarea.setSelectionRange(selectionStart + newItem.length, selectionStart + newItem.length);
-					}
-					textarea.dispatchEvent(new Event('input'));
-				} else if (olMatch) {
-					const [, indent, num, content] = olMatch;
-					if (content.trim() === '') {
-						// Linha vazia, remove o marcador
-						e.preventDefault();
-						const start = currentLine;
-						const end = lineEnd === -1 ? value.length : lineEnd;
-						textarea.value = value.slice(0, start) + indent + value.slice(end);
-						textarea.setSelectionRange(start + indent.length, start + indent.length);
-					} else {
-						// Adiciona novo item numerado
-						e.preventDefault();
-						const nextNum = parseInt(num) + 1;
-						const newItem = `\n${indent}${nextNum}. `;
-						textarea.value = value.slice(0, selectionStart) + newItem + value.slice(selectionStart);
-						textarea.setSelectionRange(selectionStart + newItem.length, selectionStart + newItem.length);
-					}
-					textarea.dispatchEvent(new Event('input'));
-				}
-			}
-			
-			// Tab para indentação em listas
-			if (e.key === 'Tab') {
-				const { selectionStart, value } = textarea;
-				const currentLine = value.lastIndexOf('\n', selectionStart - 1) + 1;
-				const lineEnd = value.indexOf('\n', selectionStart);
-				const lineContent = value.slice(currentLine, lineEnd === -1 ? value.length : lineEnd);
-				
-				if (lineContent.match(/^\s*[-*+]\s+/) || lineContent.match(/^\s*\d+\.\s+/)) {
-					e.preventDefault();
-					const indent = e.shiftKey ? '' : '  '; // Shift+Tab remove indentação
-					if (e.shiftKey) {
-						// Remove indentação
-						if (lineContent.startsWith('  ')) {
-							textarea.value = value.slice(0, currentLine) + lineContent.slice(2) + value.slice(lineEnd === -1 ? value.length : lineEnd);
-							textarea.setSelectionRange(selectionStart - 2, selectionStart - 2);
-						}
-					} else {
-						// Adiciona indentação
-						textarea.value = value.slice(0, currentLine) + '  ' + lineContent + value.slice(lineEnd === -1 ? value.length : lineEnd);
-						textarea.setSelectionRange(selectionStart + 2, selectionStart + 2);
-					}
-					textarea.dispatchEvent(new Event('input'));
-				}
-			}
+		
+		// Criar o editor contenteditable
+		const editor = el('div', {
+			contenteditable: 'true',
+			class: 'advanced-editor',
+			placeholder: 'Digite aqui a descrição...',
+			spellcheck: 'true'
 		});
-		return tb;
-	}
-	function createRichTextEditor(initialText = '') {
-		const placeholderText = 'Digite aqui a descrição...';
-		const ta = el('textarea', { placeholder: placeholderText, class: 'rich-text-input' }, initialText || '');
-		const preview = el('div', { class: 'rich-text-preview' });
-		const toolbar = createRichTextToolbar(ta, preview);
-		const root = el('div', { class: 'rich-text-editor' }, [
-			toolbar, 
-			el('div', { class: 'rich-text-panels' }, [
-				el('div', { class: 'rich-text-input-wrapper' }, ta), 
-				preview
-			])
-		]);
-		function syncHeights() {
+		
+		// Definir conteúdo inicial
+		if (initialText) {
+			editor.innerHTML = initialText;
+		}
+		
+		// Variáveis para funcionalidade do editor
+		let savedSelection = null;
+		let isApplyingToolbar = false;
+		// Guarda últimas escolhas do usuário para não serem sobrescritas enquanto a seleção estiver colapsada
+		const lastChosen = {
+			fontFamily: null,
+			fontSizePx: null,
+			textColor: null,
+			bgColor: null,
+			align: null
+		};
+
+		// Utilitários para manter a seleção ao interagir com a toolbar
+		function saveCurrentSelection() {
 			try {
-				const isEditing = root.classList.contains('editing');
-				ta.style.height = 'auto';
-				preview.style.height = 'auto';
-				if (isEditing) {
-					const taH = Math.max(ta.scrollHeight || 0, 0);
-					const pvH = Math.max(preview.scrollHeight || 0, 0);
-					const h = Math.max(200, taH, pvH); // Altura mínima maior para editor rico
-					ta.style.height = h + 'px';
-					preview.style.height = h + 'px';
-				} else {
-					preview.style.height = 'auto';
+				const sel = window.getSelection();
+				if (!sel || sel.rangeCount === 0) return;
+				const rng = sel.getRangeAt(0);
+				if (editor.contains(rng.startContainer) && editor.contains(rng.endContainer)) {
+					savedSelection = rng.cloneRange();
 				}
 			} catch {}
 		}
-		
-		function syncAfterLayout() {
-			try { requestAnimationFrame(() => requestAnimationFrame(syncHeights)); } catch { syncHeights(); }
+
+		function restoreSelection() {
+			try {
+				if (!savedSelection) return;
+				const sel = window.getSelection();
+				sel.removeAllRanges();
+				sel.addRange(savedSelection);
+			} catch {}
 		}
 		
-		const render = () => {
-			const val = ta.value || '';
-			if (!val.trim()) {
-				preview.classList.add('empty');
-				preview.textContent = placeholderText;
-				syncHeights();
-				return;
+		// Funções do editor
+		function formatText(command, value = null) {
+			restoreSelection();
+			editor.focus();
+			isApplyingToolbar = true;
+			try {
+				document.execCommand(command, false, value);
+			} finally {
+				isApplyingToolbar = false;
 			}
-			preview.classList.remove('empty');
-			preview.innerHTML = richTextToHtml(val);
-			syncHeights();
+			updateToolbarState();
+		}
+		
+		function changeFontFamily() {
+			const fontFamily = document.getElementById('editorFontFamily').value;
+			restoreSelection();
+			document.execCommand('styleWithCSS', false, true);
+			formatText('fontName', fontFamily);
+			document.execCommand('styleWithCSS', false, false);
+			lastChosen.fontFamily = fontFamily;
+			// Reforça visual imediatamente
+			const sel = document.getElementById('editorFontFamily'); if (sel) sel.value = fontFamily;
+		}
+		
+		function changeFontSize() {
+			const fontSizePx = parseInt(document.getElementById('editorFontSize').value, 10) || 16;
+			// Mapear px para 1..7 (tamanhos fixos execCommand)
+			const htmlSizesPx = [10, 13, 16, 18, 24, 32, 48];
+			let best = 3;
+			let bestDiff = Infinity;
+			htmlSizesPx.forEach((v,i)=>{ const d=Math.abs(v-fontSizePx); if(d<bestDiff){bestDiff=d; best=i+1;} });
+			restoreSelection();
+			document.execCommand('styleWithCSS', false, true);
+			formatText('fontSize', String(best));
+			document.execCommand('styleWithCSS', false, false);
+			lastChosen.fontSizePx = fontSizePx;
+			const sel = document.getElementById('editorFontSize'); if (sel) sel.value = String(fontSizePx);
+		}
+		
+		function changeTextColor() {
+			const color = document.getElementById('editorTextColor').value;
+			const colorBtn = document.getElementById('textColorBtn');
+			
+			// Atualizar a cor do botão
+			colorBtn.style.color = color;
+			
+			restoreSelection();
+			editor.focus();
+			document.execCommand('styleWithCSS', false, true);
+			formatText('foreColor', color);
+			document.execCommand('styleWithCSS', false, false);
+			lastChosen.textColor = color;
+		}
+		
+		function changeBackgroundColor() {
+			const color = document.getElementById('editorBackgroundColor').value;
+			const colorBtn = document.getElementById('backgroundColorBtn');
+			
+			// Atualizar a cor de fundo do botão
+			colorBtn.style.backgroundColor = color;
+			// Ajustar cor do texto para contraste
+			const rgb = hexToRgb(color);
+			const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+			colorBtn.style.color = brightness > 128 ? '#000' : '#fff';
+			
+			restoreSelection();
+			editor.focus();
+			document.execCommand('styleWithCSS', false, true);
+			// Tenta primeiro hiliteColor, depois backColor
+			if (!document.execCommand('hiliteColor', false, color)) {
+				document.execCommand('backColor', false, color);
+			}
+			document.execCommand('styleWithCSS', false, false);
+			lastChosen.bgColor = color;
+		}
+
+		// Aplica formatação escolhida caso o editor esteja vazio (para que a próxima digitação use o estilo da toolbar)
+		function applyLastChosenIfEmpty() {
+			if (isApplyingToolbar) return;
+			// Considera vazio se não há texto ou apenas <br>/espacos
+			const raw = editor.innerHTML.trim();
+			const isEmpty = !editor.textContent.trim() && (raw === '' || raw.toLowerCase() === '<br>' || raw === '&nbsp;');
+			if (!isEmpty) return;
+			isApplyingToolbar = true;
+			try {
+				// Garante um ponto de inserção visível
+				if (raw === '' || raw === '&nbsp;') {
+					editor.innerHTML = '<br>';
+				}
+				// Coloca o cursor no começo
+				const rng = document.createRange();
+				rng.selectNodeContents(editor);
+				rng.collapse(true);
+				const sel = window.getSelection();
+				sel.removeAllRanges();
+				sel.addRange(rng);
+				savedSelection = rng.cloneRange();
+				document.execCommand('styleWithCSS', false, true);
+				if (lastChosen.fontFamily) {
+					document.execCommand('fontName', false, lastChosen.fontFamily);
+				}
+				if (lastChosen.fontSizePx) {
+					const px = lastChosen.fontSizePx;
+					const htmlSizesPx = [10, 13, 16, 18, 24, 32, 48];
+					let best = 3; let bestDiff = Infinity;
+					htmlSizesPx.forEach((v,i)=>{ const d=Math.abs(v-px); if(d<bestDiff){bestDiff=d; best=i+1;} });
+					document.execCommand('fontSize', false, String(best));
+				}
+				if (lastChosen.textColor) {
+					document.execCommand('foreColor', false, lastChosen.textColor);
+				}
+				if (lastChosen.bgColor) {
+					if (!document.execCommand('hiliteColor', false, lastChosen.bgColor)) {
+						document.execCommand('backColor', false, lastChosen.bgColor);
+					}
+				}
+				document.execCommand('styleWithCSS', false, false);
+			} catch {} finally {
+				isApplyingToolbar = false;
+				updateToolbarState();
+			}
+		}
+		
+		// Função auxiliar para converter hex para rgb
+		function hexToRgb(hex) {
+			const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+			return result ? {
+				r: parseInt(result[1], 16),
+				g: parseInt(result[2], 16),
+				b: parseInt(result[3], 16)
+			} : null;
+		}
+		
+		function alignText(alignment) {
+			const commands = {
+				'left': 'justifyLeft',
+				'center': 'justifyCenter',
+				'right': 'justifyRight',
+				'justify': 'justifyFull'
+			};
+			lastChosen.align = alignment;
+			formatText(commands[alignment]);
+			// Atualiza imediatamente estado visual dos botões de alinhamento
+			['left','center','right','justify'].forEach(a => {
+				const map = { left: 'Esquerda', center: 'Centralizar', right: 'Direita', justify: 'Justificar' };
+				const btn = toolbar.querySelector(`button[title*="${map[a]}"]`);
+				if (btn) btn.classList.toggle('active', a === alignment);
+			});
+		}
+		
+		function changeFormatBlock() {
+			const format = document.getElementById('editorFormatBlock').value;
+			formatText('formatBlock', format);
+		}
+		
+		function showLinkModal() {
+			const selection = window.getSelection();
+			const selectedText = selection.toString();
+			
+			// Salvar seleção
+			savedSelection = null;
+			if (selection.rangeCount > 0) {
+				savedSelection = selection.getRangeAt(0);
+			}
+			
+			// Criar modal
+			const linkModal = el('div', { class: 'link-modal-overlay' }, [
+				el('div', { class: 'link-modal' }, [
+					el('div', { class: 'link-modal-header' }, [
+						el('h3', {}, 'Inserir Link'),
+						el('button', {
+							type: 'button',
+							class: 'link-modal-close',
+							onclick: () => closeLinkModal()
+						}, '×')
+					]),
+					el('div', { class: 'link-modal-body' }, [
+						el('div', { class: 'form-group' }, [
+							el('label', { for: 'linkUrl' }, 'URL:'),
+							el('input', {
+								type: 'url',
+								id: 'linkUrl',
+								placeholder: 'https://exemplo.com',
+								required: true
+							})
+						]),
+						el('div', { class: 'form-group' }, [
+							el('label', { for: 'linkText' }, 'Texto do Link:'),
+							el('input', {
+								type: 'text',
+								id: 'linkText',
+								placeholder: 'Digite o texto que aparecerá',
+								value: selectedText || '',
+								required: true
+							})
+						])
+					]),
+					el('div', { class: 'link-modal-footer' }, [
+						el('button', {
+							type: 'button',
+							class: 'btn-cancel',
+							onclick: () => closeLinkModal()
+						}, 'Cancelar'),
+						el('button', {
+							type: 'button',
+							class: 'btn-primary',
+							onclick: () => insertLinkFromModal()
+						}, 'Inserir Link')
+					])
+				])
+			]);
+			
+			document.body.appendChild(linkModal);
+			document.getElementById('linkUrl').focus();
+			
+			// Fechar com ESC
+			const escHandler = (e) => {
+				if (e.key === 'Escape') {
+					closeLinkModal();
+					document.removeEventListener('keydown', escHandler);
+				}
+			};
+			document.addEventListener('keydown', escHandler);
+			
+			function closeLinkModal() {
+				if (linkModal.parentNode) {
+					linkModal.parentNode.removeChild(linkModal);
+				}
+			}
+			
+			function insertLinkFromModal() {
+				const url = document.getElementById('linkUrl').value.trim();
+				const text = document.getElementById('linkText').value.trim();
+				
+				if (!url || !text) {
+					alert('Por favor, preencha a URL e o texto do link.');
+					return;
+				}
+				
+				// Restaurar seleção
+				if (savedSelection) {
+					const selection = window.getSelection();
+					selection.removeAllRanges();
+					selection.addRange(savedSelection);
+				}
+				
+				editor.focus();
+				
+				// Sempre abrir em nova guia
+				const linkHtml = `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+				
+				if (selectedText && savedSelection) {
+					// Substituir texto selecionado
+					document.execCommand('insertHTML', false, linkHtml);
+				} else {
+					// Inserir novo link
+					document.execCommand('insertHTML', false, linkHtml);
+				}
+				
+				closeLinkModal();
+				updateToolbarState();
+			}
+		}
+		
+		function showTableModal() {
+			// Salvar seleção
+			savedSelection = null;
+			const selection = window.getSelection();
+			if (selection.rangeCount > 0) {
+				savedSelection = selection.getRangeAt(0);
+			}
+			
+			// Criar modal
+			const tableModal = el('div', { class: 'table-modal-overlay' }, [
+				el('div', { class: 'table-modal' }, [
+					el('div', { class: 'table-modal-header' }, [
+						el('h3', {}, 'Inserir Tabela'),
+						el('button', {
+							type: 'button',
+							class: 'table-modal-close',
+							onclick: () => closeTableModal()
+						}, '×')
+					]),
+					el('div', { class: 'table-modal-body' }, [
+						el('div', { class: 'form-row' }, [
+							el('div', { class: 'form-group' }, [
+								el('label', { for: 'tableRows' }, 'Linhas:'),
+								el('input', {
+									type: 'number',
+									id: 'tableRows',
+									min: '1',
+									max: '20',
+									value: '3'
+								})
+							]),
+							el('div', { class: 'form-group' }, [
+								el('label', { for: 'tableCols' }, 'Colunas:'),
+								el('input', {
+									type: 'number',
+									id: 'tableCols',
+									min: '1',
+									max: '10',
+									value: '3'
+								})
+							])
+						]),
+						el('div', { class: 'form-group' }, [
+							el('label', {}, [
+								el('input', {
+									type: 'checkbox',
+									id: 'tableHeader',
+									checked: true
+								}),
+								' Incluir cabeçalho'
+							])
+						]),
+						el('div', { class: 'table-preview' }, [
+							el('h4', {}, 'Visualização:'),
+							el('div', { id: 'tablePreviewContainer' })
+						])
+					]),
+					el('div', { class: 'table-modal-footer' }, [
+						el('button', {
+							type: 'button',
+							class: 'btn-cancel',
+							onclick: () => closeTableModal()
+						}, 'Cancelar'),
+						el('button', {
+							type: 'button',
+							class: 'btn-primary',
+							onclick: () => insertTableFromModal()
+						}, 'Inserir Tabela')
+					])
+				])
+			]);
+			
+			document.body.appendChild(tableModal);
+			
+			// Atualizar preview inicial
+			updateTablePreview();
+			
+			// Event listeners para atualizar preview
+			document.getElementById('tableRows').addEventListener('input', updateTablePreview);
+			document.getElementById('tableCols').addEventListener('input', updateTablePreview);
+			document.getElementById('tableHeader').addEventListener('change', updateTablePreview);
+			
+			// Fechar com ESC
+			const escHandler = (e) => {
+				if (e.key === 'Escape') {
+					closeTableModal();
+					document.removeEventListener('keydown', escHandler);
+				}
+			};
+			document.addEventListener('keydown', escHandler);
+			
+			function updateTablePreview() {
+				const rows = parseInt(document.getElementById('tableRows').value) || 3;
+				const cols = parseInt(document.getElementById('tableCols').value) || 3;
+				const hasHeader = document.getElementById('tableHeader').checked;
+				
+				const previewContainer = document.getElementById('tablePreviewContainer');
+				previewContainer.innerHTML = '';
+				
+				const table = el('table', { class: 'table-preview-table' });
+				
+				// Criar cabeçalho se necessário
+				if (hasHeader) {
+					const thead = el('thead');
+					const headerRow = el('tr');
+					for (let j = 0; j < cols; j++) {
+						headerRow.appendChild(el('th', {}, `Coluna ${j + 1}`));
+					}
+					thead.appendChild(headerRow);
+					table.appendChild(thead);
+				}
+				
+				// Criar corpo da tabela
+				const tbody = el('tbody');
+				const startRow = hasHeader ? 1 : 0;
+				for (let i = startRow; i < rows; i++) {
+					const row = el('tr');
+					for (let j = 0; j < cols; j++) {
+						row.appendChild(el('td', {}, hasHeader ? `Célula ${i},${j + 1}` : `Célula ${i + 1},${j + 1}`));
+					}
+					tbody.appendChild(row);
+				}
+				table.appendChild(tbody);
+				
+				previewContainer.appendChild(table);
+			}
+			
+			function closeTableModal() {
+				if (tableModal.parentNode) {
+					tableModal.parentNode.removeChild(tableModal);
+				}
+			}
+			
+			function insertTableFromModal() {
+				const rows = parseInt(document.getElementById('tableRows').value) || 3;
+				const cols = parseInt(document.getElementById('tableCols').value) || 3;
+				const hasHeader = document.getElementById('tableHeader').checked;
+				
+				// Restaurar seleção
+				if (savedSelection) {
+					const selection = window.getSelection();
+					selection.removeAllRanges();
+					selection.addRange(savedSelection);
+				}
+				
+				editor.focus();
+				
+				// Criar HTML da tabela
+				let tableHtml = '<table class="editor-table" border="1" cellpadding="8" cellspacing="0">';
+				
+				// Cabeçalho
+				if (hasHeader) {
+					tableHtml += '<thead><tr>';
+					for (let j = 0; j < cols; j++) {
+						tableHtml += '<th>Cabeçalho</th>';
+					}
+					tableHtml += '</tr></thead>';
+				}
+				
+				// Corpo
+				tableHtml += '<tbody>';
+				const startRow = hasHeader ? 1 : 0;
+				for (let i = startRow; i < rows; i++) {
+					tableHtml += '<tr>';
+					for (let j = 0; j < cols; j++) {
+						tableHtml += '<td>&nbsp;</td>';
+					}
+					tableHtml += '</tr>';
+				}
+				tableHtml += '</tbody></table><p>&nbsp;</p>';
+				
+				document.execCommand('insertHTML', false, tableHtml);
+				
+				closeTableModal();
+				updateToolbarState();
+			}
+		}
+		
+		function updateToolbarState() {
+			if (isApplyingToolbar) return;
+			// Atualizar estado dos botões baseado na formatação atual
+			const buttons = toolbar.querySelectorAll('.btn-editor');
+			buttons.forEach(btn => btn.classList.remove('active'));
+			
+			// Verificar formatação ativa
+			try {
+				if (document.queryCommandState('bold')) {
+					const boldBtn = toolbar.querySelector('button[title*="Negrito"]');
+					if (boldBtn) boldBtn.classList.add('active');
+				}
+				if (document.queryCommandState('italic')) {
+					const italicBtn = toolbar.querySelector('button[title*="Itálico"]');
+					if (italicBtn) italicBtn.classList.add('active');
+				}
+				if (document.queryCommandState('underline')) {
+					const underlineBtn = toolbar.querySelector('button[title*="Sublinhado"]');
+					if (underlineBtn) underlineBtn.classList.add('active');
+				}
+				if (document.queryCommandState('strikeThrough')) {
+					const strikeBtn = toolbar.querySelector('button[title*="Riscado"]');
+					if (strikeBtn) strikeBtn.classList.add('active');
+				}
+				
+				// Atualizar seletor de estilo baseado no elemento atual
+				const selection = window.getSelection();
+				const formatSelect = document.getElementById('editorFormatBlock');
+				
+				if (selection.rangeCount > 0 && formatSelect) {
+					const range = selection.getRangeAt(0);
+					let node = range.startContainer;
+					
+					if (node.nodeType === Node.TEXT_NODE) {
+						node = node.parentNode;
+					}
+					
+					// Procurar o elemento de bloco mais próximo
+					let currentStyle = 'div'; // padrão
+					let currentNode = node;
+					
+					while (currentNode && currentNode !== editor) {
+						const tagName = currentNode.tagName;
+						if (tagName === 'BLOCKQUOTE') {
+							currentStyle = 'blockquote';
+							break;
+						} else if (tagName === 'PRE') {
+							currentStyle = 'pre';
+							break;
+						} else if (tagName === 'H1') {
+							currentStyle = 'h1';
+							break;
+						} else if (tagName === 'H2') {
+							currentStyle = 'h2';
+							break;
+						} else if (tagName === 'H3') {
+							currentStyle = 'h3';
+							break;
+						} else if (tagName === 'H4') {
+							currentStyle = 'h4';
+							break;
+						} else if (tagName === 'P') {
+							currentStyle = 'div'; // tratamos P como div/normal
+							break;
+						}
+						currentNode = currentNode.parentNode;
+					}
+					
+					// Atualizar o select
+					formatSelect.value = currentStyle;
+				}
+				
+				// Atualizar seletores de fonte e tamanho baseado no elemento atual
+				if (selection.rangeCount > 0) {
+					const range = selection.getRangeAt(0);
+					let node = range.startContainer;
+					if (node.nodeType === Node.TEXT_NODE) {
+						node = node.parentNode;
+					}
+
+					const selectionCollapsed = range.collapsed;
+					
+					// Verificar fonte somente se a seleção não estiver colapsada; se colapsada mantemos última escolha
+					const computedStyle = window.getComputedStyle(node);
+					const fontFamily = selectionCollapsed && lastChosen.fontFamily ? lastChosen.fontFamily : computedStyle.fontFamily;
+					const fontSize = selectionCollapsed && lastChosen.fontSizePx ? lastChosen.fontSizePx : parseInt(computedStyle.fontSize);
+					
+					// Atualizar seletores se possível
+					const fontFamilySelect = document.getElementById('editorFontFamily');
+					const fontSizeSelect = document.getElementById('editorFontSize');
+					
+					if (fontFamilySelect && fontFamily) {
+						// Procurar match aproximado
+						for (let option of fontFamilySelect.options) {
+							if (fontFamily.toLowerCase().includes(option.value.toLowerCase())) {
+								fontFamilySelect.value = option.value;
+								break;
+							}
+						}
+					}
+					
+					if (fontSizeSelect && fontSize) {
+						const opt = Array.from(fontSizeSelect.options).find(o => parseInt(o.value) === fontSize);
+						if (opt) fontSizeSelect.value = opt.value;
+					}
+
+					// Alinhamento: marcar botão ativo
+					(function handleAlignButtons(){
+						let n = node; let alignFound = null;
+						while (n && n !== editor) {
+							const cs = window.getComputedStyle(n);
+							if (cs.textAlign && cs.textAlign !== 'start') { alignFound = cs.textAlign; break; }
+							n = n.parentElement;
+						}
+						if (!alignFound) alignFound = 'left';
+						lastChosen.align = alignFound;
+						const map = { left: 'Esquerda', center: 'Centralizar', right: 'Direita', justify: 'Justificar' };
+						['left','center','right','justify'].forEach(a => {
+							const titleFrag = map[a];
+							const btn = toolbar.querySelector(`button[title*="${titleFrag}"]`);
+							if (btn) btn.classList.toggle('active', (a === 'justify' ? alignFound === 'justify' : alignFound === a));
+						});
+					})();
+					
+					// Atualizar cores dos botões baseado no estilo computado
+					const textColorBtn = document.getElementById('textColorBtn');
+					const backgroundColorBtn = document.getElementById('backgroundColorBtn');
+					const textColorInput = document.getElementById('editorTextColor');
+					const backgroundColorInput = document.getElementById('editorBackgroundColor');
+					
+					if (textColorBtn && textColorInput) {
+						const textColor = computedStyle.color;
+						const rgbMatch = textColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+						if (rgbMatch) {
+							const hex = rgbToHex(parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3]));
+							const finalHex = selectionCollapsed && lastChosen.textColor ? lastChosen.textColor : hex;
+							textColorInput.value = finalHex;
+							textColorBtn.style.color = finalHex;
+						}
+					}
+					
+					if (backgroundColorBtn && backgroundColorInput) {
+						const bgColor = computedStyle.backgroundColor;
+						if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+							const rgbMatch = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+							if (rgbMatch) {
+								const hex = rgbToHex(parseInt(rgbMatch[1]), parseInt(rgbMatch[2]), parseInt(rgbMatch[3]));
+								const finalHex = selectionCollapsed && lastChosen.bgColor ? lastChosen.bgColor : hex;
+								backgroundColorInput.value = finalHex;
+								backgroundColorBtn.style.backgroundColor = finalHex;
+								// Ajustar cor do texto para contraste
+								const rgb = hexToRgb(finalHex);
+								const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000;
+								backgroundColorBtn.style.color = brightness > 128 ? '#000' : '#fff';
+							}
+						}
+					}
+				}
+			} catch (e) {
+				// Ignore errors in queryCommandState
+			}
+		}
+		
+		// Função auxiliar para converter RGB para hex
+		function rgbToHex(r, g, b) {
+			return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+		}
+		
+		// Event listeners
+		editor.addEventListener('keydown', (e) => {
+			// Tratar Enter e Shift+Enter em blocos especiais
+			if (e.key === 'Enter') {
+				const selection = window.getSelection();
+				if (selection.rangeCount > 0) {
+					const range = selection.getRangeAt(0);
+					let node = range.startContainer;
+					
+					// Se for um nó de texto, pegar o elemento pai
+					if (node.nodeType === Node.TEXT_NODE) {
+						node = node.parentNode;
+					}
+					
+					// Verificar se estamos em um bloco especial
+					let specialBlock = null;
+					let blockElement = null;
+					let currentNode = node;
+					
+					while (currentNode && currentNode !== editor) {
+						if (currentNode.tagName === 'BLOCKQUOTE') {
+							specialBlock = 'blockquote';
+							blockElement = currentNode;
+							break;
+						} else if (currentNode.tagName === 'PRE') {
+							specialBlock = 'pre';
+							blockElement = currentNode;
+							break;
+						}
+						currentNode = currentNode.parentNode;
+					}
+					
+					if (specialBlock) {
+						e.preventDefault();
+						e.stopPropagation();
+						
+						if (e.shiftKey) {
+							// Shift+Enter: Sair do bloco especial
+							// Criar um novo parágrafo após o bloco
+							const newP = document.createElement('div');
+							newP.innerHTML = '<br>';
+							
+							// Inserir após o bloco atual
+							if (blockElement.nextSibling) {
+								blockElement.parentNode.insertBefore(newP, blockElement.nextSibling);
+							} else {
+								blockElement.parentNode.appendChild(newP);
+							}
+							
+							// Posicionar cursor no novo elemento
+							const newRange = document.createRange();
+							newRange.setStart(newP, 0);
+							newRange.collapse(true);
+							selection.removeAllRanges();
+							selection.addRange(newRange);
+							
+						} else {
+							// Enter normal: Quebrar linha dentro do bloco
+							if (specialBlock === 'pre') {
+								// Para código, inserir quebra de linha simples sem criar novo bloco
+								const textNode = document.createTextNode('\n');
+								range.insertNode(textNode);
+								range.setStartAfter(textNode);
+								range.collapse(true);
+								selection.removeAllRanges();
+								selection.addRange(range);
+								
+							} else if (specialBlock === 'blockquote') {
+								// Para citação, inserir <br> para quebrar linha
+								const br = document.createElement('br');
+								range.insertNode(br);
+								range.setStartAfter(br);
+								range.collapse(true);
+								selection.removeAllRanges();
+								selection.addRange(range);
+							}
+						}
+						return false;
+					}
+				}
+			}
+			
+			// Atalhos de teclado
+			if (e.ctrlKey || e.metaKey) {
+				switch(e.key.toLowerCase()) {
+					case 'b':
+						e.preventDefault();
+						formatText('bold');
+						break;
+					case 'i':
+						e.preventDefault();
+						formatText('italic');
+						break;
+					case 'u':
+						e.preventDefault();
+						formatText('underline');
+						break;
+				}
+			}
+		});
+		
+		editor.addEventListener('keyup', (e) => { saveCurrentSelection(); applyLastChosenIfEmpty(); updateToolbarState(); });
+		editor.addEventListener('mouseup', () => { saveCurrentSelection(); updateToolbarState(); });
+		editor.addEventListener('click', () => { saveCurrentSelection(); updateToolbarState(); });
+		// Atualiza seleção globalmente quando o foco está no editor
+		document.addEventListener('selectionchange', () => {
+			if (document.activeElement === editor) {
+				saveCurrentSelection();
+				updateToolbarState();
+			}
+		});
+		
+		// Garantir que links funcionem corretamente
+		editor.addEventListener('click', (e) => {
+			if (e.target.tagName === 'A') {
+				e.preventDefault();
+				const url = e.target.getAttribute('href');
+				if (url) {
+					window.open(url, '_blank', 'noopener,noreferrer');
+				}
+			}
+		});
+		
+		// Event listener para input para capturar mudanças e evitar quebras indesejadas
+		editor.addEventListener('input', (e) => {
+			// Verificar se novos elementos PRE foram criados incorretamente
+			const preElements = editor.querySelectorAll('pre');
+			preElements.forEach(pre => {
+				// Se um PRE contém apenas um <br> ou está vazio, pode ter sido criado por engano
+				if (pre.innerHTML.trim() === '<br>' || pre.innerHTML.trim() === '') {
+					// Verificar se há outro PRE anterior
+					const prevPre = pre.previousElementSibling;
+					if (prevPre && prevPre.tagName === 'PRE') {
+						// Mover o cursor para o PRE anterior e remover o novo
+						const range = document.createRange();
+						range.setStart(prevPre, prevPre.childNodes.length);
+						range.collapse(true);
+						
+						const selection = window.getSelection();
+						selection.removeAllRanges();
+						selection.addRange(range);
+						
+						// Remover o PRE vazio
+						pre.remove();
+					}
+				}
+			});
+			
+			// Verificar se novos elementos BLOCKQUOTE foram criados incorretamente
+			const blockquoteElements = editor.querySelectorAll('blockquote');
+			blockquoteElements.forEach(blockquote => {
+				// Se um BLOCKQUOTE contém apenas um <br> ou está vazio
+				if (blockquote.innerHTML.trim() === '<br>' || blockquote.innerHTML.trim() === '') {
+					// Verificar se há outro BLOCKQUOTE anterior
+					const prevBlockquote = blockquote.previousElementSibling;
+					if (prevBlockquote && prevBlockquote.tagName === 'BLOCKQUOTE') {
+						// Mover o cursor para o BLOCKQUOTE anterior e remover o novo
+						const range = document.createRange();
+						range.setStart(prevBlockquote, prevBlockquote.childNodes.length);
+						range.collapse(true);
+						
+						const selection = window.getSelection();
+						selection.removeAllRanges();
+						selection.addRange(range);
+						
+						// Remover o BLOCKQUOTE vazio
+						blockquote.remove();
+					}
+				}
+			});
+			
+			applyLastChosenIfEmpty();
+			updateToolbarState();
+		});
+		
+		// Inicializar toolbar e capturar seleção inicial
+		setTimeout(() => { saveCurrentSelection(); updateToolbarState(); }, 100);
+		
+		// Montar o container
+		editorContainer.append(toolbar, editor);
+		
+		return {
+			root: editorContainer,
+			getValue: () => editor.innerHTML,
+			setValue: (v) => { editor.innerHTML = v || ''; }
 		};
-		
-		const setEditing = (on) => {
-			root.classList.toggle('editing', !!on);
-			syncAfterLayout();
-		};
-		
-		// Render inicial e estado não editando
-		render();
-		setEditing(false);
-		
-		// Permitir seleção/cópia no preview sem alternar modo ao clicar
-		preview.setAttribute('tabindex', '0');
-		preview.addEventListener('mousedown', (e) => {
-			e.stopPropagation();
-		});
-		
-		// Ao clicar no preview quando não estiver editando, entrar em edição
-		preview.addEventListener('click', (e) => {
-			const a = e.target && e.target.closest ? e.target.closest('a') : null;
-			if (a) return; // permite abrir links normalmente
-			if (!root.classList.contains('editing')) {
-				setEditing(true);
-				setTimeout(() => { ta.focus(); syncAfterLayout(); }, 0);
-			}
-		});
-		
-		// Manter preview atualizado
-		ta.addEventListener('input', render);
-		window.addEventListener('resize', () => syncHeights());
-		
-		// Alterna classe de edição baseado no foco dentro do editor
-		let blurTimer;
-		root.addEventListener('focusin', (e) => {
-			if (blurTimer) clearTimeout(blurTimer);
-			const t = e.target;
-			if (t && (t.closest && (t.closest('.rich-text-input-wrapper') || t.closest('.rich-text-toolbar')))) {
-				setEditing(true);
-				syncAfterLayout();
-			}
-		});
-		root.addEventListener('focusout', () => {
-			blurTimer = setTimeout(() => {
-				if (!root.contains(document.activeElement)) setEditing(false);
-			}, 80);
-		});
-		
-		return { root, getValue: () => ta.value, setValue: (v) => { ta.value = v || ''; render(); } };
 	}
-	const descEditor = createRichTextEditor(initial.description || '');
+	
+	const descEditor = createAdvancedEditor(initial.description || '');
 
 	// Checklist (subtarefas)
 	const subtasks = (initial.subtasks || []).map(s => ({ ...s }));
