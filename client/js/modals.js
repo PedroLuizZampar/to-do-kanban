@@ -2051,14 +2051,14 @@ async function tagManager() {
 		enableDrag(listEl);
 	}
 	await refresh();
-	root.append(
-		el('h3', { class: 'card-title' }, 'Tags'),
-		listEl,
-		el('footer', {}, [
-			el('button', { class: 'btn-danger', onclick: Modal.close }, 'Fechar'),
-			el('button', { onclick: () => Modal.open(tagForm()) }, 'Nova tag'),
+	// Cabeçalho com ação "Nova tag" à direita
+	const header = el('div', { class: 'modal-header-row', style: 'display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;' }, [
+		el('h3', { class: 'card-title', style: 'margin:0;' }, 'Tags'),
+		el('div', { style: 'flex:0 0 auto; display:flex; gap:8px;' }, [
+			el('button', { onclick: () => Modal.open(tagForm()) }, 'Nova tag')
 		])
-	);
+	]);
+	root.append(header, listEl);
 	// ao retomar este modal (após fechar o filho), atualiza a lista
 	root.addEventListener('modal:resumed', async () => {
 		await refresh();
@@ -2073,6 +2073,116 @@ async function tagManager() {
 }
 
 window.$modals.tagManager = tagManager;
+
+// Gerenciador de Templates
+async function templateManager() {
+	const root = el('div', {});
+	const listEl = el('div', { class: 'tag-list' });
+
+	function enableDrag(container) {
+		container.querySelectorAll('.tag-row').forEach(row => {
+			row.setAttribute('draggable', 'true');
+			row.addEventListener('dragstart', () => row.classList.add('dragging'));
+			row.addEventListener('dragend', async () => {
+				row.classList.remove('dragging');
+				const order = [...container.querySelectorAll('.tag-row')].map(r => Number(r.dataset.id)).filter(Boolean);
+				const boardId = window.$utils.getBoardId();
+				try { await api.post('/api/templates/reorder', { boardId, order }); document.dispatchEvent(new CustomEvent('templatesChanged')); } catch {}
+			});
+		});
+		container.addEventListener('dragover', (e) => {
+			e.preventDefault();
+			const els = [...container.querySelectorAll('.tag-row:not(.dragging)')];
+			let closest = null; let closestOffset = Number.NEGATIVE_INFINITY;
+			for (const el2 of els) {
+				const box = el2.getBoundingClientRect();
+				const offset = e.clientY - box.top - box.height / 2;
+				if (offset < 0 && offset > closestOffset) { closestOffset = offset; closest = el2; }
+			}
+			const dragging = container.querySelector('.tag-row.dragging');
+			if (!dragging) return;
+			if (!closest) container.append(dragging); else container.insertBefore(dragging, closest);
+		});
+	}
+
+	async function refresh() {
+		listEl.innerHTML = '';
+		const boardId = window.$utils.getBoardId();
+		let templates = [];
+		try { templates = await api.get(`/api/templates?boardId=${encodeURIComponent(boardId || '')}`); } catch {}
+		if (!templates.length) {
+			listEl.append(el('p', { class: 'muted' }, 'Nenhum template.'));
+			return;
+		}
+		templates.forEach(t => {
+			let contentObj = {};
+			try { contentObj = typeof t.content === 'string' ? JSON.parse(t.content) : (t.content || {}); } catch {}
+			const left = el('div', { class: 'tag-left' }, [
+				el('span', { class: 'material-symbols-outlined drag-handle', title: 'Arraste para reordenar', 'aria-hidden': 'true' }, 'drag_indicator'),
+				pill(t.name, '#64748b'),
+				contentObj.title ? el('small', { class: 'muted' }, ` — ${contentObj.title}`) : '',
+				 t.is_default ? el('small', { class: 'muted' }, ' — padrão') : ''
+			]);
+			const actions = el('div', { class: 'tag-actions' }, [
+				el('button', { class: 'btn-ghost btn-favorite', title: t.is_default ? 'Remover padrão' : 'Definir como padrão', onclick: async () => {
+					if (t.is_default) { await api.del('/api/templates/default'); }
+					else { await api.post(`/api/templates/${t.id}/default`, {}); }
+					await refresh();
+				}}, [
+					el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true', style: t.is_default ? 'color:#f59e0b' : '' }, 'star'),
+					el('span', { class: 'sr-only' }, 'Definir padrão')
+				]),
+				el('button', { class: 'btn-ghost btn-edit', title: 'Editar template', onclick: async () => {
+					const initial = {
+						id: t.id,
+						__templateMode: true,
+						template_name: t.name,
+						is_default: t.is_default,
+						title: contentObj.title || '',
+						description: contentObj.description || '',
+						subtasks: Array.isArray(contentObj.subtasks) ? contentObj.subtasks : [],
+						due_days: contentObj.due_days,
+						due_hm: contentObj.due_hm,
+						tags: Array.isArray(contentObj.tags) ? contentObj.tags.map(id => ({ id })) : []
+					};
+					Modal.open(await taskForm(initial));
+				}}, [
+					el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'edit'),
+					el('span', { class: 'sr-only' }, 'Editar')
+				]),
+				el('button', { class: 'btn-ghost btn-delete', title: 'Excluir template', onclick: async () => {
+					const ok = await $modals.confirm({ title: 'Excluir template', message: `Excluir o template "${t.name}"?`, confirmText: 'Excluir' });
+					if (!ok) return;
+					try { await api.del(`/api/templates/${t.id}`); $modals.toast.show('Template excluído'); } catch { await $modals.alert({ title: 'Erro', message: 'Não foi possível excluir.' }); }
+					await refresh();
+				}}, [
+					el('span', { class: 'material-symbols-outlined', 'aria-hidden': 'true' }, 'delete'),
+					el('span', { class: 'sr-only' }, 'Excluir')
+				])
+			]);
+			const row = el('div', { class: 'tag-row', 'data-id': String(t.id) }, [left, actions]);
+			listEl.append(row);
+		});
+		enableDrag(listEl);
+	}
+
+	await refresh();
+	const header = el('div', { class: 'modal-header-row', style: 'display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px;' }, [
+		el('h3', { class: 'card-title', style: 'margin:0;' }, 'Templates'),
+		el('div', { style: 'flex:0 0 auto; display:flex; gap:8px;' }, [
+			el('button', { onclick: async () => { Modal.open(await taskForm({ __templateMode: true })); } }, 'Novo template')
+		])
+	]);
+	root.append(header, listEl);
+
+	root.addEventListener('modal:resumed', async () => { await refresh(); });
+	const onTemplatesChanged = async () => { await refresh(); };
+	document.addEventListener('templatesChanged', onTemplatesChanged);
+	root.addEventListener('modal:cleanup', () => { document.removeEventListener('templatesChanged', onTemplatesChanged); });
+	Modal.open(root);
+}
+
+window.$modals.templateManager = templateManager;
 
 // Modal de ajuda/atalhos
 function helpContent() {
