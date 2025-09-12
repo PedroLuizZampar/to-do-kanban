@@ -372,22 +372,17 @@ async function taskForm(initial = {}) {
 						el('option', { value: 'Verdana' }, 'Verdana'),
 						el('option', { value: 'monospace' }, 'Monospace')
 					]),
-					el('select', { 
+					el('input', { 
 						id: 'editorFontSize',
-						title: 'Tamanho da Fonte',
-						style: 'width: 60px',
+						type: 'number',
+						min: '6',
+						max: '72',
+						value: '16',
+						title: 'Tamanho da Fonte (6-72)',
+						style: 'width: 70px',
+						oninput: () => changeFontSize(),
 						onchange: () => changeFontSize()
-					}, [
-						el('option', { value: '12' }, '12px'),
-						el('option', { value: '13' }, '13px'),
-						el('option', { value: '14' }, '14px'),
-						el('option', { value: '16', selected: true }, '16px'),
-						el('option', { value: '18' }, '18px'),
-						el('option', { value: '20' }, '20px'),
-						el('option', { value: '24' }, '24px'),
-						el('option', { value: '32' }, '32px'),
-						el('option', { value: '48' }, '48px')
-					])
+					})
 				])
 			]),
 			
@@ -550,6 +545,17 @@ async function taskForm(initial = {}) {
 			editor.innerHTML = initialText;
 		}
 		
+			// Adiciona botões de inserir linha e limpar formatação no grupo Inserir (feitos depois de montar resto da toolbar)
+			setTimeout(() => {
+				const insertGroup = [...toolbar.querySelectorAll('.toolbar-group')].find(g => g.querySelector('label.toolbar-label')?.textContent === 'Inserir')?.querySelector('.button-group');
+				if (insertGroup && !insertGroup.querySelector('[title="Inserir Linha Horizontal"]')) {
+					insertGroup.append(
+						el('button', { class: 'btn-editor', type: 'button', title: 'Inserir Linha Horizontal', onclick: (e) => { e.preventDefault(); insertHorizontalRule(); } }, el('i', { class: 'fas fa-minus' })),
+						el('button', { class: 'btn-editor', type: 'button', title: 'Limpar Formatação', onclick: (e) => { e.preventDefault(); clearFormatting(); } }, el('i', { class: 'fas fa-eraser' }))
+					);
+				}
+			}, 0);
+
 		// Variáveis para funcionalidade do editor
 		let savedSelection = null;
 		let isApplyingToolbar = false;
@@ -608,18 +614,48 @@ async function taskForm(initial = {}) {
 		}
 		
 		function changeFontSize() {
-			const fontSizePx = parseInt(document.getElementById('editorFontSize').value, 10) || 16;
-			// Mapear px para 1..7 (tamanhos fixos execCommand)
-			const htmlSizesPx = [10, 13, 16, 18, 24, 32, 48];
-			let best = 3;
-			let bestDiff = Infinity;
-			htmlSizesPx.forEach((v,i)=>{ const d=Math.abs(v-fontSizePx); if(d<bestDiff){bestDiff=d; best=i+1;} });
+			let fontSizePx = parseInt(document.getElementById('editorFontSize').value, 10) || 16;
+			if (fontSizePx < 6) fontSizePx = 6; else if (fontSizePx > 72) fontSizePx = 72;
+			const sel = window.getSelection();
+			if (!sel) return;
 			restoreSelection();
-			document.execCommand('styleWithCSS', false, true);
-			formatText('fontSize', String(best));
-			document.execCommand('styleWithCSS', false, false);
+			editor.focus();
+			const range = sel.rangeCount ? sel.getRangeAt(0) : null;
+			if (!range) return;
+			isApplyingToolbar = true;
+			try {
+				if (range.collapsed) {
+					// Inserir span marcador para tamanho que influenciará texto futuro
+					const marker = document.createElement('span');
+					marker.style.fontSize = fontSizePx + 'px';
+					marker.appendChild(document.createTextNode('\u200B'));
+					range.insertNode(marker);
+					// posicionar cursor dentro do span
+					const newRange = document.createRange();
+					newRange.setStart(marker.firstChild, 1);
+					newRange.collapse(true);
+					sel.removeAllRanges();
+					sel.addRange(newRange);
+				} else {
+					// Envolve seleção existente
+					const wrapper = document.createElement('span');
+					wrapper.style.fontSize = fontSizePx + 'px';
+					try {
+						wrapper.appendChild(range.extractContents());
+						range.insertNode(wrapper);
+						// Ajustar seleção para dentro do wrapper
+						const newRange = document.createRange();
+						newRange.selectNodeContents(wrapper);
+						sel.removeAllRanges();
+						sel.addRange(newRange);
+					} catch {}
+				}
+			} finally {
+				isApplyingToolbar = false;
+			}
 			lastChosen.fontSizePx = fontSizePx;
-			const sel = document.getElementById('editorFontSize'); if (sel) sel.value = String(fontSizePx);
+			const inp = document.getElementById('editorFontSize'); if (inp) inp.value = String(fontSizePx);
+			updateToolbarState();
 		}
 		
 		function changeTextColor() {
@@ -731,6 +767,44 @@ async function taskForm(initial = {}) {
 				const btn = toolbar.querySelector(`button[title*="${map[a]}"]`);
 				if (btn) btn.classList.toggle('active', a === alignment);
 			});
+		}
+
+		// Inserir linha horizontal
+		function insertHorizontalRule() {
+			restoreSelection();
+			document.execCommand('insertHorizontalRule');
+			updateToolbarState();
+		}
+
+		// Limpar formatação
+		function clearFormatting() {
+			restoreSelection();
+			document.execCommand('removeFormat');
+			// Também remover tags <font>, <span> com estilos desnecessários na seleção inteira
+			// Estratégia simples: limpar nós dentro do editor
+			editor.querySelectorAll('font').forEach(n => {
+				const span = document.createElement('span');
+				span.innerHTML = n.innerHTML;
+				n.replaceWith(span);
+			});
+			editor.querySelectorAll('span').forEach(s => {
+				if (s.getAttribute('style')) {
+					// Keep apenas background-color se houver
+					const bg = s.style.backgroundColor;
+					const txt = s.style.color;
+					s.removeAttribute('style');
+					if (bg) s.style.backgroundColor = bg;
+					if (txt) s.style.color = txt;
+				}
+			});
+			lastChosen.fontFamily = null;
+			lastChosen.fontSizePx = null;
+			lastChosen.textColor = null;
+			lastChosen.bgColor = null;
+			// Reset UI
+			const fam = document.getElementById('editorFontFamily'); if (fam) fam.value = 'Inter';
+			const sizeInput = document.getElementById('editorFontSize'); if (sizeInput) sizeInput.value = '16';
+			updateToolbarState();
 		}
 		
 		function changeFormatBlock() {
@@ -1114,7 +1188,7 @@ async function taskForm(initial = {}) {
 					
 					// Atualizar seletores se possível
 					const fontFamilySelect = document.getElementById('editorFontFamily');
-					const fontSizeSelect = document.getElementById('editorFontSize');
+					const fontSizeInput = document.getElementById('editorFontSize');
 					
 					if (fontFamilySelect && fontFamily) {
 						// Procurar match aproximado
@@ -1126,9 +1200,9 @@ async function taskForm(initial = {}) {
 						}
 					}
 					
-					if (fontSizeSelect && fontSize) {
-						const opt = Array.from(fontSizeSelect.options).find(o => parseInt(o.value) === fontSize);
-						if (opt) fontSizeSelect.value = opt.value;
+					if (fontSizeInput && fontSize) {
+						// fontSize pode vir em px ou ser herdado (pt convertido pelo browser). Garantir número.
+						fontSizeInput.value = String(fontSize);
 					}
 
 					// Alinhamento: marcar botão ativo
@@ -2120,7 +2194,6 @@ async function templateManager() {
 			const left = el('div', { class: 'tag-left' }, [
 				el('span', { class: 'material-symbols-outlined drag-handle', title: 'Arraste para reordenar', 'aria-hidden': 'true' }, 'drag_indicator'),
 				pill(t.name, '#64748b'),
-				contentObj.title ? el('small', { class: 'muted' }, ` — ${contentObj.title}`) : '',
 				 t.is_default ? el('small', { class: 'muted' }, ' — padrão') : ''
 			]);
 			const actions = el('div', { class: 'tag-actions' }, [

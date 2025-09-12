@@ -152,8 +152,10 @@
 /* Editor */
 .advanced-editor {
     min-height: 200px;
-    max-height: 400px;
-    overflow-y: auto;
+    /* Removido max-height para crescimento ilimitado */
+    /* max-height: 400px; */
+    /* Removido overflow interno para que o modal cresça */
+    overflow-y: visible;
     padding: 1.25rem;
     outline: none;
     font-family: 'Inter', sans-serif;
